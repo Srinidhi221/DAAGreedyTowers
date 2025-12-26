@@ -2,9 +2,6 @@ package game;
 
 import java.util.*;
 
-//============================================================================
-//SCORE GREEDY STRATEGY - Person 3
-//============================================================================
 public class StrategyScore {
  private GameState state;
 
@@ -12,36 +9,40 @@ public class StrategyScore {
      this.state = state;
  }
 
+
  public int[] findBestMove() {
-     int size = state.getSize();
-     double bestScore = -Double.MAX_VALUE;
-     int bestRow = -1, bestCol = -1, bestValue = -1;
-     String bestExplanation = "";
+	    int size = state.getSize();
 
-     for (int r = 0; r < size; r++) {
-         for (int c = 0; c < size; c++) {
-             if (state.getGrid()[r][c] == 0) {
-                 for (int v = 1; v <= size; v++) {
-                     if (!state.getGraph().hasConflict(state.getGrid(), r, c, v)) {
-                         CellEvaluation eval = evaluateScore(r, c, v);
-                         if (eval.score > bestScore) {
-                             bestScore = eval.score;
-                             bestRow = r;
-                             bestCol = c;
-                             bestValue = v;
-                             bestExplanation = eval.explanation;
-                         }
-                     }
-                 }
-             }
-         }
-     }
+	    // Collect ALL possible legal moves with their evaluations
+	    List<CellEvaluation> candidates = new ArrayList<>();
 
-     if (bestRow == -1) return null;
+	    for (int r = 0; r < size; r++) {
+	        for (int c = 0; c < size; c++) {
+	            if (state.getGrid()[r][c] == 0) {
+	                for (int v = 1; v <= size; v++) {
+	                    if (!state.getGraph().hasConflict(state.getGrid(), r, c, v)) {
+	                        CellEvaluation eval = evaluateScore(r, c, v);
+	                        candidates.add(eval);
+	                    }
+	                }
+	            }
+	        }
+	    }
 
-     state.setCpuReasoningExplanation(bestExplanation);
-     return new int[]{bestRow, bestCol, bestValue};
- }
+	    if (candidates.isEmpty()) {
+	        return null;
+	    }
+
+	    //  Use shared professional sorting with center preference
+	    candidates.sort(CellSorter.getComparator(size));
+
+	    // Pick the absolute best move
+	    CellEvaluation best = candidates.get(0);
+
+	    state.setCpuReasoningExplanation(best.explanation);
+
+	    return new int[]{best.row, best.col, best.value};
+	}
 
  private CellEvaluation evaluateScore(int row, int col, int value) {
      int[][] temp = deepCopyGrid(state.getGrid());
@@ -68,10 +69,10 @@ public class StrategyScore {
      String explanation = String.format(
          "【SCORE GREEDY】\n" +
          "════════════════════════════\n" +
-         "📍 Move: %d at (%d,%d)\n" +
-         "🎯 Legal options: %d%s\n" +
+         " Move: %d at (%d,%d)\n" +
+         " Legal options: %d%s\n" +
          "%s%s%s" +
-         "📈 PROJECTED SCORE: %.1f\n" +
+         " PROJECTED SCORE: %.1f\n" +
          "════════════════════════════\n" +
          "STRATEGY: Maximize immediate points!",
          value, row, col, legalCount, legalCount <= 2 ? " → -5 risk" : "",
@@ -81,7 +82,7 @@ public class StrategyScore {
          score
      );
 
-     return new CellEvaluation(row, col, score, explanation);
+     return new CellEvaluation(row, col, score, explanation,value);
  }
 
  private boolean visibilityObviouslyWrong(int[][] grid, int index, boolean isRow) {
