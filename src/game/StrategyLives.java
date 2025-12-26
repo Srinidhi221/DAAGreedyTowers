@@ -2,9 +2,6 @@ package game;
 
 import java.util.*;
 
-//============================================================================
-//SURVIVAL GREEDY STRATEGY (Lives-Based) - Person 1
-//============================================================================
 public class StrategyLives {
  private GameState state;
 
@@ -12,45 +9,53 @@ public class StrategyLives {
      this.state = state;
  }
 
+ 
  public int[] findBestMove() {
-     int size = state.getSize();
-     double bestScore = -Double.MAX_VALUE;
-     int bestRow = -1, bestCol = -1;
-     String bestExplanation = "";
+	    int size = state.getSize();
+	    int cpuLives = state.getCpuLives();
+	    double emergencyMultiplier = calculateEmergencyMultiplier(cpuLives);
+	    String status = getEmergencyStatus(cpuLives);
 
-     int cpuLives = state.getCpuLives();
-     double emergencyMultiplier = calculateEmergencyMultiplier(cpuLives);
-     String status = getEmergencyStatus(cpuLives);
+	    // Collect all empty cells with their survival evaluations
+	    List<CellEvaluation> candidates = new ArrayList<>();
 
-     for (int r = 0; r < size; r++) {
-         for (int c = 0; c < size; c++) {
-             if (state.getGrid()[r][c] == 0) {
-                 CellEvaluation eval = evaluateSurvival(r, c, emergencyMultiplier, status);
-                 if (eval.score > bestScore) {
-                     bestScore = eval.score;
-                     bestRow = r;
-                     bestCol = c;
-                     bestExplanation = eval.explanation;
-                 }
-             }
-         }
-     }
+	    for (int r = 0; r < size; r++) {
+	        for (int c = 0; c < size; c++) {
+	            if (state.getGrid()[r][c] == 0) {
+	                CellEvaluation eval = evaluateSurvival(r, c, emergencyMultiplier, status);
+	                // Skip death traps (score = -1000)
+	                if (eval.score > -999) {
+	                    candidates.add(eval);
+	                }
+	            }
+	        }
+	    }
 
-     if (bestRow == -1) return null;
+	    if (candidates.isEmpty()) {
+	        return null;
+	    }
 
-     int bestValue = findLegalValue(bestRow, bestCol);
-     if (bestValue == -1) return null;
+	    // Shared professional sorting with center preference
+	    candidates.sort(CellSorter.getComparator(size));
 
-     state.setCpuReasoningExplanation(bestExplanation);
-     return new int[]{bestRow, bestCol, bestValue};
- }
+	    // Pick the safest cell
+	    CellEvaluation best = candidates.get(0);
+	    state.setCpuReasoningExplanation(best.explanation);
 
+	    // Choose any legal value (conservative — avoids risk)
+	    int bestValue = findLegalValue(best.row, best.col);
+	    if (bestValue == -1) {
+	        return null;
+	    }
+
+	    return new int[]{best.row, best.col, bestValue};
+	}
  private CellEvaluation evaluateSurvival(int row, int col, double emergencyMultiplier, String status) {
      int legalCount = countLegalValues(row, col);
 
      if (legalCount == 0) {
          return new CellEvaluation(row, col, -1000.0,
-             "❌ DEATH TRAP: No legal values → instant -10 lives penalty!");
+             " DEATH TRAP: No legal values → instant -10 lives penalty!");
      }
 
      double baseSafety = legalCount * 25.0;
@@ -60,13 +65,13 @@ public class StrategyLives {
      String explanation = String.format(
          "【SURVIVAL GREEDY - %s】\n" +
          "════════════════════════════\n" +
-         "📍 Cell: (%d,%d)\n" +
-         "❤️  CPU Lives: %d\n" +
-         "🎯 Legal options: %d\n" +
-         "🛡️  Base safety: %.1f\n" +
-         "🚨 Emergency multiplier: ×%.1f\n" +
-         "💊 Lives preservation: +%.1f\n" +
-         "📈 FINAL SCORE: %.1f\n" +
+         " Cell: (%d,%d)\n" +
+         "  CPU Lives: %d\n" +
+         " Legal options: %d\n" +
+         "  Base safety: %.1f\n" +
+         " Emergency multiplier: ×%.1f\n" +
+         " Lives preservation: +%.1f\n" +
+         " FINAL SCORE: %.1f\n" +
          "════════════════════════════\n" +
          "STRATEGY: Maximize survival – avoid penalties at all costs!",
          status, row, col, state.getCpuLives(), legalCount,
@@ -85,10 +90,10 @@ public class StrategyLives {
  }
 
  private String getEmergencyStatus(int lives) {
-     if (lives <= 15) return "CRITICAL 🚨";
-     if (lives <= 30) return "EMERGENCY ⚠️";
-     if (lives <= 50) return "WARNING ⚠️";
-     if (lives <= 75) return "ALERT 🔶";
+     if (lives <= 15) return "CRITICAL ";
+     if (lives <= 30) return "EMERGENCY ";
+     if (lives <= 50) return "WARNING ";
+     if (lives <= 75) return "ALERT ";
      return "SAFE ✅";
  }
 
