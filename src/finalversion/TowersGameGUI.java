@@ -3,7 +3,6 @@ package game;
 import javax.swing.*;
 import javax.swing.Timer;
 import java.awt.*;
-import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -657,6 +656,6 @@ public class TowersGameGUI extends JFrame {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new TowersGameGUI().setVisible(true));
+        SwingUtilities.invokeLater(() -> new TowersssGameGUI().setVisible(true));
     }
 }
