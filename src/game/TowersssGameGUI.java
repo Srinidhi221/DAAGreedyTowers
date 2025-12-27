@@ -5,14 +5,15 @@ import javax.swing.Timer;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.*;
+import java.util.*;
+import java.util.List;
 
 // ============================================================================
-// MAIN GUI - Towers Puzzle Game (4x4) with 4 Greedy Strategies
+// MAIN GUI - Towers Puzzle Game (4x4) with 4 Greedy Strategies + Adjacency List
 // ============================================================================
 
 public class TowersssGameGUI extends JFrame {
     private static final int N = 4;
-    // REMOVED: Old hardcoded constants - now generated dynamically
 
     private GameState gameState;
     private StrategyLives strategyLives;
@@ -29,6 +30,35 @@ public class TowersssGameGUI extends JFrame {
     private JComboBox<String> strategyCombo;
     private JCheckBox heatMapToggle;
     private JTextArea reasoningArea;
+
+    // Adjacency List tracking
+    private Map<String, List<String>> adjacencyList = new LinkedHashMap<>();
+    private List<MoveNode> moveHistory = new ArrayList<>();
+    private int moveCounter = 0;
+
+    // Move node class to track move details
+    private static class MoveNode {
+        int id;
+        int row, col, value;
+        boolean isHuman;
+
+        MoveNode(int id, int row, int col, int value, boolean isHuman) {
+            this.id = id;
+            this.row = row;
+            this.col = col;
+            this.value = value;
+            this.isHuman = isHuman;
+        }
+
+        String getKey() {
+            return "M" + id + "[" + row + "," + col + "=" + value + "]" + (isHuman ? "(H)" : "(C)");
+        }
+
+        boolean isAdjacent(MoveNode other) {
+            // Adjacent if same row OR same column
+            return this.row == other.row || this.col == other.col;
+        }
+    }
 
     private enum Strategy {
         LIVES("Lives-Greedy (Survival)"),
@@ -49,7 +79,7 @@ public class TowersssGameGUI extends JFrame {
         setTitle("Towers Puzzle - 4×4 with 4 AI Strategies");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout(20, 20));
-        getContentPane().setBackground(new Color(15, 23, 42)); // Dark slate background
+        getContentPane().setBackground(new Color(15, 23, 42));
 
         initGame();
         initComponents();
@@ -58,6 +88,111 @@ public class TowersssGameGUI extends JFrame {
         setLocationRelativeTo(null);
         setResizable(false);
         updateDisplay();
+
+        System.out.println("\n" + "=".repeat(70));
+        System.out.println("TOWERS GAME - MOVE ADJACENCY LIST TRACKER");
+        System.out.println("=".repeat(70));
+        System.out.println("Tracking move connections (same row/column relationships)");
+        System.out.println("=".repeat(70) + "\n");
+    }
+
+    // ============================================================================
+    // ADJACENCY LIST METHODS
+    // ============================================================================
+
+    private void addMoveToAdjacencyList(int row, int col, int value, boolean isHuman) {
+        moveCounter++;
+        MoveNode newMove = new MoveNode(moveCounter, row, col, value, isHuman);
+        String newKey = newMove.getKey();
+
+        // Initialize adjacency list for this move
+        adjacencyList.put(newKey, new ArrayList<>());
+
+        // Check connections with all previous moves
+        for (MoveNode prevMove : moveHistory) {
+            if (newMove.isAdjacent(prevMove)) {
+                String prevKey = prevMove.getKey();
+
+                // Add bidirectional edge
+                adjacencyList.get(newKey).add(prevKey);
+                adjacencyList.get(prevKey).add(newKey);
+            }
+        }
+
+        moveHistory.add(newMove);
+        printAdjacencyList(newMove);
+    }
+
+    private void printAdjacencyList(MoveNode latestMove) {
+        System.out.println("\n" + "-".repeat(70));
+        System.out.println("Move #" + moveCounter + " → Cell[" + latestMove.row + "," + latestMove.col +
+                "] = " + latestMove.value + " by " + (latestMove.isHuman ? "HUMAN" : "CPU"));
+        System.out.println("-".repeat(70));
+
+        // Print the adjacency list
+        System.out.println("\nCURRENT ADJACENCY LIST:");
+        System.out.println("─".repeat(70));
+
+        for (Map.Entry<String, List<String>> entry : adjacencyList.entrySet()) {
+            String node = entry.getKey();
+            List<String> neighbors = entry.getValue();
+
+            System.out.print(node + " → ");
+            if (neighbors.isEmpty()) {
+                System.out.println("[ No adjacent moves ]");
+            } else {
+                System.out.println(neighbors);
+            }
+        }
+
+        System.out.println("─".repeat(70));
+        System.out.println("Total Moves: " + moveCounter + " | Nodes: " + adjacencyList.size() +
+                " | Edges: " + countEdges());
+        System.out.println();
+    }
+
+    private int countEdges() {
+        int count = 0;
+        for (List<String> neighbors : adjacencyList.values()) {
+            count += neighbors.size();
+        }
+        return count / 2; // Each edge is counted twice (bidirectional)
+    }
+
+    private void printFinalAdjacencyStats() {
+        System.out.println("\n" + "=".repeat(70));
+        System.out.println("FINAL ADJACENCY LIST STATISTICS");
+        System.out.println("=".repeat(70));
+        System.out.println("Total Moves Made: " + moveCounter);
+        System.out.println("Total Nodes: " + adjacencyList.size());
+        System.out.println("Total Edges: " + countEdges());
+
+        // Find most connected move
+        String mostConnected = null;
+        int maxConnections = 0;
+        for (Map.Entry<String, List<String>> entry : adjacencyList.entrySet()) {
+            if (entry.getValue().size() > maxConnections) {
+                maxConnections = entry.getValue().size();
+                mostConnected = entry.getKey();
+            }
+        }
+
+        if (mostConnected != null) {
+            System.out.println("Most Connected Move: " + mostConnected +
+                    " with " + maxConnections + " connections");
+        }
+
+        System.out.println("=".repeat(70) + "\n");
+    }
+
+    private void resetAdjacencyList() {
+        adjacencyList.clear();
+        moveHistory.clear();
+        moveCounter = 0;
+
+        System.out.println("\n" + "=".repeat(70));
+        System.out.println("GAME RESET - Adjacency List Cleared");
+        System.out.println("=".repeat(70) + "\n");
     }
 
     // ============================================================================
@@ -65,11 +200,9 @@ public class TowersssGameGUI extends JFrame {
     // ============================================================================
 
     private void initGame() {
-        // Generate a valid puzzle with consistent clues
         PuzzleGenerator generator = new PuzzleGenerator();
         PuzzleGenerator.PuzzleData puzzle = generator.generatePuzzle();
 
-        // Initialize game state with generated clues
         gameState = new GameState(
                 puzzle.topClues,
                 puzzle.rightClues,
@@ -77,7 +210,6 @@ public class TowersssGameGUI extends JFrame {
                 puzzle.leftClues
         );
 
-        // Initialize strategies
         strategyLives = new StrategyLives(gameState);
         strategyCompletion = new StrategyCompletion(gameState);
         strategyScore = new StrategyScore(gameState);
@@ -94,10 +226,10 @@ public class TowersssGameGUI extends JFrame {
         topPanel.setOpaque(false);
         topPanel.setBorder(BorderFactory.createEmptyBorder(20, 25, 15, 25));
 
-        humanScoreLabel = createModernStatCard("👤 YOUR SCORE", "0", new Color(59, 130, 246), new Color(30, 58, 138));
-        humanLivesLabel = createModernStatCard("❤️ YOUR LIVES", "100", new Color(16, 185, 129), new Color(6, 78, 59));
-        cpuScoreLabel = createModernStatCard("🤖 CPU SCORE", "0", new Color(168, 85, 247), new Color(88, 28, 135));
-        cpuLivesLabel = createModernStatCard("⚡ CPU LIVES", "100", new Color(239, 68, 68), new Color(127, 29, 29));
+        humanScoreLabel = createModernStatCard(" YOUR SCORE", "0", new Color(59, 130, 246), new Color(30, 58, 138));
+        humanLivesLabel = createModernStatCard(" YOUR LIVES", "100", new Color(16, 185, 129), new Color(6, 78, 59));
+        cpuScoreLabel = createModernStatCard(" CPU SCORE", "0", new Color(168, 85, 247), new Color(88, 28, 135));
+        cpuLivesLabel = createModernStatCard(" CPU LIVES", "100", new Color(239, 68, 68), new Color(127, 29, 29));
 
         topPanel.add(humanScoreLabel);
         topPanel.add(humanLivesLabel);
@@ -173,7 +305,7 @@ public class TowersssGameGUI extends JFrame {
         JPanel strategyCard = createModernCard();
         strategyCard.setLayout(new BoxLayout(strategyCard, BoxLayout.Y_AXIS));
 
-        JLabel stratLabel = new JLabel("🧠 CPU STRATEGY");
+        JLabel stratLabel = new JLabel(" CPU STRATEGY");
         stratLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         stratLabel.setForeground(new Color(148, 163, 184));
         stratLabel.setAlignmentX(LEFT_ALIGNMENT);
@@ -195,7 +327,7 @@ public class TowersssGameGUI extends JFrame {
         strategyCard.add(Box.createVerticalStrut(10));
         strategyCard.add(strategyCombo);
 
-        heatMapToggle = new JCheckBox("🔥 Show Heat Map", true);
+        heatMapToggle = new JCheckBox(" Show Heat Map", true);
         heatMapToggle.setFont(new Font("Segoe UI", Font.BOLD, 14));
         heatMapToggle.setForeground(Color.WHITE);
         heatMapToggle.setOpaque(false);
@@ -208,7 +340,7 @@ public class TowersssGameGUI extends JFrame {
         strategyCard.add(Box.createVerticalStrut(15));
         strategyCard.add(heatMapToggle);
 
-        JButton resetBtn = createModernButton("🔄 New Game", new Color(59, 130, 246));
+        JButton resetBtn = createModernButton(" New Game", new Color(59, 130, 246));
         resetBtn.setAlignmentX(LEFT_ALIGNMENT);
         resetBtn.addActionListener(e -> resetGame());
 
@@ -222,7 +354,7 @@ public class TowersssGameGUI extends JFrame {
         reasoningCard.setLayout(new BoxLayout(reasoningCard, BoxLayout.Y_AXIS));
         reasoningCard.setMaximumSize(new Dimension(300, 280));
 
-        JLabel reasonLabel = new JLabel("💭 CPU REASONING");
+        JLabel reasonLabel = new JLabel(" CPU REASONING");
         reasonLabel.setFont(new Font("Segoe UI", Font.BOLD, 13));
         reasonLabel.setForeground(new Color(148, 163, 184));
         reasonLabel.setAlignmentX(LEFT_ALIGNMENT);
@@ -331,7 +463,6 @@ public class TowersssGameGUI extends JFrame {
         btn.setMaximumSize(new Dimension(300, 50));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // Hover effect
         btn.addMouseListener(new MouseAdapter() {
             public void mouseEntered(MouseEvent e) {
                 btn.setBackground(color.brighter());
@@ -389,7 +520,6 @@ public class TowersssGameGUI extends JFrame {
         container.add(Box.createVerticalStrut(5));
         container.add(valueLabel);
 
-        // Wrap in JLabel for compatibility
         JLabel wrapper = new JLabel();
         wrapper.setLayout(new BorderLayout());
         wrapper.add(container);
@@ -479,12 +609,15 @@ public class TowersssGameGUI extends JFrame {
         if (selectedRow == -1) return;
 
         gameState.makeMove(selectedRow, selectedCol, val, true);
+
+        // Add to adjacency list
+        addMoveToAdjacencyList(selectedRow, selectedCol, val, true);
+
         selectedRow = -1;
         selectedCol = -1;
         valueSelectionPanel.setVisible(false);
         gameState.setHumanTurn(false);
 
-        // Clear heat map immediately after human move
         clearHeatMap();
         updateDisplay();
 
@@ -507,7 +640,7 @@ public class TowersssGameGUI extends JFrame {
             Timer delay = new Timer(1200, e -> {
                 if (!gameState.isGameOver()) {
                     doCPUMove();
-                    clearHeatMap(); // Clear heat map after CPU move
+                    clearHeatMap();
                     gameState.setHumanTurn(true);
                     updateDisplay();
                     checkGameEnd();
@@ -528,7 +661,7 @@ public class TowersssGameGUI extends JFrame {
         t.start();
     }
 
-    private Color getHeatColor(double h) {
+  /*  private Color getHeatColor(double h) {
         if (h < 0.01) return new Color(30, 41, 59);
 
         double ratio = Math.min(h, 1.0);
@@ -538,6 +671,44 @@ public class TowersssGameGUI extends JFrame {
             case COMPLETION ->  new Color(239 + (int)(15 * ratio), 68 + (int)(82 * ratio), 68 + (int)(82 * ratio));
             case SCORE ->       new Color(255, 165 + (int)(90 * ratio), 0);
             case MRV ->         new Color(130 + (int)(56 * ratio), 39, 144 + (int)(64 * ratio));
+        };
+    }*/
+
+
+    private Color getHeatColor(double h) {
+        if (h < 0.01) return new Color(30, 41, 59);
+
+        double ratio = Math.min(h, 1.0);
+
+        return switch (currentStrategy) {
+            case LIVES -> {
+                // Bright emerald green gradient (light to vibrant)
+                int r = 110 + (int)(106 * ratio);  // 110 -> 216
+                int g = 231 + (int)(0 * ratio);     // 231 -> 231 (keep bright)
+                int b = 183 + (int)(-71 * ratio);   // 183 -> 112
+                yield new Color(r, g, b);
+            }
+            case COMPLETION -> {
+                // Bright coral/salmon gradient (light to intense)
+                int r = 252 + (int)(0 * ratio);     // 252 -> 252 (keep bright)
+                int g = 165 + (int)(-80 * ratio);   // 165 -> 85
+                int b = 165 + (int)(-80 * ratio);   // 165 -> 85
+                yield new Color(r, g, b);
+            }
+            case SCORE -> {
+                // Bright gold/amber gradient (light to vibrant orange)
+                int r = 253 + (int)(0 * ratio);     // 253 -> 253 (keep bright)
+                int g = 224 + (int)(-74 * ratio);   // 224 -> 150
+                int b = 71 + (int)(-71 * ratio);    // 71 -> 0
+                yield new Color(r, g, b);
+            }
+            case MRV -> {
+                // Bright purple/magenta gradient (light to vivid)
+                int r = 216 + (int)(22 * ratio);    // 216 -> 238
+                int g = 180 + (int)(-86 * ratio);   // 180 -> 94
+                int b = 254 + (int)(-48 * ratio);   // 254 -> 206
+                yield new Color(r, g, b);
+            }
         };
     }
 
@@ -575,7 +746,9 @@ public class TowersssGameGUI extends JFrame {
         reasoningArea.setText(gameState.getCpuReasoningExplanation());
         gameState.makeMove(move[0], move[1], move[2], false);
 
-        // Clear heat map values after CPU move
+        // Add to adjacency list
+        addMoveToAdjacencyList(move[0], move[1], move[2], false);
+
         for (int r = 0; r < N; r++) {
             for (int c = 0; c < N; c++) {
                 heatMapValues[r][c] = 0;
@@ -645,7 +818,6 @@ public class TowersssGameGUI extends JFrame {
             }
         }
 
-        // Update stat cards by finding the value label (second component)
         updateStatCard(humanScoreLabel, String.valueOf(gameState.getHumanScore()));
         updateStatCard(humanLivesLabel, String.valueOf(gameState.getHumanLives()));
         updateStatCard(cpuScoreLabel, String.valueOf(gameState.getCpuScore()));
@@ -655,9 +827,9 @@ public class TowersssGameGUI extends JFrame {
         if (!msg.isEmpty()) {
             statusLabel.setText(msg);
         } else if (gameState.isHumanTurn()) {
-            statusLabel.setText(selectedRow == -1 ? "✨ Your turn! Click a cell." : "🎯 Select a value");
+            statusLabel.setText(selectedRow == -1 ? " Your turn! Click a cell." : " Select a value");
         } else {
-            statusLabel.setText("🤔 CPU thinking (" + currentStrategy + ")...");
+            statusLabel.setText(" CPU thinking (" + currentStrategy + ")...");
         }
     }
 
@@ -677,6 +849,8 @@ public class TowersssGameGUI extends JFrame {
 
     private boolean checkGameEnd() {
         if (gameState.isGameOver()) {
+            printFinalAdjacencyStats();
+
             String winner = gameState.getWinner();
             if (winner == null) winner = "Game Over";
 
@@ -696,13 +870,14 @@ public class TowersssGameGUI extends JFrame {
 
     private void resetGame() {
         initGame();
+        resetAdjacencyList();
         selectedRow = -1;
         selectedCol = -1;
         valueSelectionPanel.setVisible(false);
         reasoningArea.setText("Select a strategy and watch the CPU think...");
         updateHeatMap();
         updateDisplay();
-        statusLabel.setText("✨ New game started! Your turn.");
+        statusLabel.setText(" New game started! Your turn.");
     }
 
     // ============================================================================
@@ -710,7 +885,6 @@ public class TowersssGameGUI extends JFrame {
     // ============================================================================
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new TowersssGameGUI().setVisible(true));
+        SwingUtilities.invokeLater(() -> new TowersGameGUI().setVisible(true));
     }
 }
-
