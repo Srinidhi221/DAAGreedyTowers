@@ -1,10 +1,7 @@
 package game;
-
 import java.util.*;
 
-//============================================================================
 //VERTEX CLASS
-//============================================================================
 class Vertex {
     int row, col, position;
     List<Edge> incidentEdges = new ArrayList<>();
@@ -20,9 +17,7 @@ class Vertex {
     }
 }
 
-// ============================================================================
 // EDGE CLASS
-// ============================================================================
 class Edge {
     Vertex origin, dest;
 
@@ -32,9 +27,7 @@ class Edge {
     }
 }
 
-// ============================================================================
 // TOWERS CONSTRAINT GRAPH
-// ============================================================================
 class TowersConstraintGraph {
     private final int size = 4; // Fixed 4x4
     private List<Vertex> vertices = new ArrayList<>();
@@ -72,11 +65,24 @@ class TowersConstraintGraph {
         }
         return false;
     }
+
+    // ADDED: canPlace method that was missing
+    public boolean canPlace(int[][] grid, int row, int col, int value,
+                            int leftClue, int rightClue,
+                            int topClue, int bottomClue) {
+        // Check basic constraints (no duplicates in row/column)
+        if (hasConflict(grid, row, col, value)) {
+            return false;
+        }
+
+        // For now, just check the basic constraints
+        // The visibility constraints would need more complex logic
+        return true;
+    }
 }
 
-// ============================================================================
+
 // GAME STATE
-// ============================================================================
 class GameState {
     private static final int SIZE = 4; // Fixed 4x4
     private TowersConstraintGraph graph = new TowersConstraintGraph();
@@ -100,57 +106,6 @@ class GameState {
         System.arraycopy(bottom, 0, this.bottomClues, 0, SIZE);
         System.arraycopy(left, 0, this.leftClues, 0, SIZE);
     }
-
-    // Add this inside GameState class
-    public int getCurrentSize() {
-        // Adjust this based on how your size is stored
-        // Common options:
-        return grid.length; // if grid is accessible and static
-        // OR
-        // return currentPuzzleSize; // if you have a size variable
-        // OR
-        // return instance.getSize(); // if non-static and you have instance
-    }
-    // === MOVE EXECUTION & PENALTIES ===
-    // public boolean makeMove(int row, int col, int value, boolean isHuman) {
-    // if (grid[row][col] != 0) {
-    // statusMessage = "❌ Cell already filled!";
-    // return false;
-    // }
-    //
-    // if (graph.hasConflict(grid, row, col, value)) {
-    // applyPenalty(isHuman, 10, "Constraint violation");
-    // return false;
-    // }
-    //
-    // grid[row][col] = value;
-    // int scoreGain = 1;
-    //
-    // boolean rowComplete = isRowComplete(row);
-    // boolean colComplete = isColumnComplete(col);
-    //
-    // if (rowComplete) {
-    // scoreGain += 10;
-    // if (validateRowVisibility(row)) scoreGain += 15;
-    // else applyPenalty(isHuman, 15, "Row visibility violation");
-    // }
-    // if (colComplete) {
-    // scoreGain += 10;
-    // if (validateColumnVisibility(col)) scoreGain += 15;
-    // else applyPenalty(isHuman, 15, "Column visibility violation");
-    // }
-    //
-    // if (isHuman) humanScore += scoreGain;
-    // else cpuScore += scoreGain;
-    //
-    // if (!hasAnyValidMoves()) {
-    // applyPenalty(isHuman, 5, "Deadlock - no legal moves");
-    // }
-    //
-    // statusMessage = isHuman ? "✓ Valid move! +" + scoreGain : "✓ CPU move! +" +
-    // scoreGain;
-    // return true;
-    // }
 
     public boolean makeMove(int row, int col, int value, boolean isHuman) {
         // 1. Check if cell is occupied
@@ -215,11 +170,6 @@ class GameState {
         return true;
     }
 
-    /**
-     * Check if the current player has any legal moves available.
-     * If not, apply deadlock penalty and return true.
-     * Call this BEFORE each player's turn in the GUI.
-     */
     public boolean checkForDeadlock(boolean isHuman) {
         if (!hasAnyValidMoves()) {
             applyPenalty(isHuman, 5, "Deadlock - no legal moves");
@@ -228,15 +178,6 @@ class GameState {
         return false; // Has legal moves - continue normally
     }
 
-    // private void applyPenalty(boolean isHuman, int amount, String reason) {
-    // if (isHuman) {
-    // humanLives = Math.max(0, humanLives - amount);
-    // statusMessage = "❌ " + reason + " (-" + amount + " lives)";
-    // } else {
-    // cpuLives = Math.max(0, cpuLives - amount);
-    // statusMessage = "❌ CPU " + reason.toLowerCase() + " (-" + amount + " lives)";
-    // }
-    // }
     private void applyPenalty(boolean isHuman, int amount, String reason) {
         if (isHuman) {
             humanLives = Math.max(0, humanLives - amount);
@@ -329,24 +270,20 @@ class GameState {
         return false;
     }
 
-    // public String getWinner() {
-    // if (humanLives <= 0 && cpuLives <= 0) return "DRAW - Double KO";
-    // if (humanLives <= 0) return "CPU WINS";
-    // if (cpuLives <= 0) return "HUMAN WINS";
-    // if (isBoardFull() || !hasAnyValidMoves()) {
-    // int hTotal = humanScore + humanLives / 10;
-    // int cTotal = cpuScore + cpuLives / 10;
-    // if (hTotal > cTotal) return "HUMAN WINS";
-    // if (cTotal > hTotal) return "CPU WINS";
-    // return "DRAW";
-    // }
-    // return null;
-    // }
+    public boolean checkLegalMove(int row, int col, int value) {
+        // Check if cell is empty
+        if (grid[row][col] != 0) {
+            return false;
+        }
 
-    /**
-     * Check if a specific player has valid moves
-     * Returns true if player CAN move, false if stuck
-     */
+        // Check for constraint violations
+        if (graph.hasConflict(grid, row, col, value)) {
+            return false;
+        }
+
+        return true;
+    }
+
     public boolean hasValidMovesForPlayer(boolean isHuman) {
         // If it's not their turn, they're not stuck
         if (isHuman && !isHumanTurn)
@@ -388,11 +325,6 @@ class GameState {
         return null; // Game still ongoing
     }
 
-    // public boolean isGameOver() {
-    // return humanLives <= 0 || cpuLives <= 0 || isBoardFull() ||
-    // !hasAnyValidMoves();
-    // }
-
     public boolean isGameOver() {
         // Immediate loss by lives
         if (humanLives <= 0 || cpuLives <= 0) {
@@ -416,75 +348,57 @@ class GameState {
     public int[][] getGrid() {
         return grid;
     }
-
     public int getSize() {
         return SIZE;
     }
-
     public TowersConstraintGraph getGraph() {
         return graph;
     }
-
     public int getHumanScore() {
         return humanScore;
     }
-
     public int getCpuScore() {
         return cpuScore;
     }
-
     public int getHumanLives() {
         return humanLives;
     }
-
     public int getCpuLives() {
         return cpuLives;
     }
-
     public int[] getTopClues() {
         return topClues;
     }
-
     public int[] getRightClues() {
         return rightClues;
     }
-
     public int[] getBottomClues() {
         return bottomClues;
     }
-
     public int[] getLeftClues() {
         return leftClues;
     }
-
     public boolean isHumanTurn() {
         return isHumanTurn;
     }
-
     public void setHumanTurn(boolean t) {
         isHumanTurn = t;
     }
-
     public String getStatusMessage() {
         return statusMessage;
     }
-
     public void setStatusMessage(String m) {
         statusMessage = m;
     }
-
     public String getCpuReasoningExplanation() {
         return cpuReasoningExplanation;
     }
-
     public void setCpuReasoningExplanation(String e) {
         cpuReasoningExplanation = e;
     }
 }
 
-// ============================================================================
 // CELL EVALUATION (shared by strategies)
-// ============================================================================
 class CellEvaluation {
     int row, col;
     double score;
