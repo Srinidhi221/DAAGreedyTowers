@@ -256,5 +256,36 @@ public class StrategyDP {
 
 }
 
+    // ════════════════════════════════════════════════════════════════════════
+    //  EXPLANATION TEXT  (shown in reasoning panel)
+    // ════════════════════════════════════════════════════════════════════════
+
+    private String buildExplanation(MoveEval best, List<MoveEval> all) {
+        int explored = all.size();
+        int memoHits = memo.size();
+
+        return String.format(
+                "【DYNAMIC PROGRAMMING】\n" +
+                        "════════════════════════════\n" +
+                        " Move : %d  at  (%d , %d)\n" +
+                        " Immediate reward : %+.1f\n" +
+                        " Future (DP)      : %+.1f\n" +
+                        " Total score      :  %.1f\n" +
+                        "────────────────────────────\n" +
+                        " States memoised  : %d\n" +
+                        " Moves explored   : %d\n" +
+                        " Look-ahead depth : 3 plies\n" +
+                        "════════════════════════════\n" +
+                        "STRATEGY: Memoised sub-problem\n" +
+                        "optimisation — picks globally\n" +
+                        "best reachable outcome.",
+                best.value, best.row + 1, best.col + 1,
+                best.immediate, best.future, best.total,
+                memoHits, explored
+        );
+    }
+
+
+
 
 
