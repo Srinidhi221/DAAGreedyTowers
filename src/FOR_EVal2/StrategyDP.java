@@ -98,6 +98,47 @@ public class StrategyDP {
         return max;
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    //  DP CORE
+    // ════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Recursive memoised DP.
+     * Returns the best future reward from the given board state.
+     *
+     * @param grid  current board (after a hypothetical move)
+     * @param key   compact long key of the board
+     * @param depth recursion depth (used for discounting)
+     */
+    private double dpValue(int[][] grid, long key, int depth) {
+        if (depth >= 3) return 0;   // horizon limit – keeps it snappy
+
+        if (memo.containsKey(key)) return memo.get(key);
+
+        double best = 0;
+
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                if (grid[r][c] != 0) continue;
+                for (int v = 1; v <= SIZE; v++) {
+                    if (state.getGraph().hasConflict(grid, r, c, v)) continue;
+
+                    int[][] next = deepCopy(grid);
+                    next[r][c] = v;
+
+                    double reward = immediateReward(next, r, c, v);
+                    double future = dpValue(next, gridKey(next), depth + 1);
+                    double total  = reward + FUTURE_DEPTH_WEIGHT * future;
+
+                    if (total > best) best = total;
+                }
+            }
+        }
+
+        memo.put(key, best);
+        return best;
+    }
+
 
 
 
@@ -214,5 +255,6 @@ public class StrategyDP {
 
 
 }
+
 
 
