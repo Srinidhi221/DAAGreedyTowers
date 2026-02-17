@@ -44,9 +44,38 @@ public class StrategyDP {
 
 
 
+
+
+
+    //  REWARD FUNCTION  (shared by immediate + future scoring)
+
+    private double immediateReward(int[][] grid, int row, int col, int value) {
+        double score = BASE_REWARD;
+
+        boolean rowDone = isRowComplete(grid, row);
+        boolean colDone = isColComplete(grid, col);
+
+        if (rowDone) {
+            score += ROW_COMPLETE_REWARD;
+            if (rowVisibilityValid(grid, row)) score += VIS_VALID_BONUS;
+        }
+        if (colDone) {
+            score += COL_COMPLETE_REWARD;
+            if (colVisibilityValid(grid, col)) score += VIS_VALID_BONUS;
+        }
+        if (rowDone && colDone) score += DOUBLE_BONUS;
+
+        // penalise moves that leave very few future options for this cell's peers
+        int opts = legalCount(row, col);
+        if (opts <= 1) score += LOW_OPTIONS_PENALTY * 2;
+        else if (opts <= 2) score += LOW_OPTIONS_PENALTY;
+
+        return score;
+    }
+
+
         
     //  VISIBILITY  (Towers clue validation)
-
     /** Check the left/right clues for a completed row. */
     private boolean rowVisibilityValid(int[][] grid, int row) {
         int[] leftClues  = state.getLeftClues();
@@ -90,7 +119,6 @@ public class StrategyDP {
 
 
     //  UTILITY
-
     private boolean isRowComplete(int[][] g, int r) {
         for (int c = 0; c < SIZE; c++) if (g[r][c] == 0) return false;
         return true;
