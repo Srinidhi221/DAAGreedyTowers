@@ -1,448 +1,731 @@
 package FOR_EVal2;
 
 import javax.swing.*;
+import javax.swing.border.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.geom.RoundRectangle2D;
+import java.awt.event.*;
+import java.awt.geom.*;
+import java.awt.image.BufferedImage;
+import java.util.Random;
 
-// MAIN GUI - Towers Puzzle Game (4x4) with 4 Greedy Strategies
+// ─────────────────────────────────────────────────────────────────────────────
+//  MAIN GUI  –  Towers Puzzle  (4 × 4)   •   DP  &  D&C  AI Strategies
+//  Splash screen → algorithm chooser → full game
+// ─────────────────────────────────────────────────────────────────────────────
 public class TowersssGameGUI extends JFrame {
+
+    // ── puzzle constants ────────────────────────────────────────────────────
     private static final int N = 4;
-private static final int[] TOP = {1, 3, 2, 2};
-private static final int[] RIGHT = {3, 2, 1, 2};
-private static final int[] BOTTOM = {3, 1, 2, 2};
-private static final int[] LEFT = {1, 3, 2, 2};
+    private static final int[] TOP    = {1, 3, 2, 2};
+    private static final int[] RIGHT  = {3, 2, 1, 2};
+    private static final int[] BOTTOM = {3, 1, 2, 2};
+    private static final int[] LEFT   = {1, 3, 2, 2};
 
-    private GameState gameState;
-    private StrategyLives strategyLives;
-    private StrategyCompletion strategyCompletion;
-    private StrategyScore strategyScore;
-    private StrategyMRV strategyMRV;
+    // ── game objects ────────────────────────────────────────────────────────
+    private GameState           gameState;
+    private StrategyDP          strategyDP;
+    private StrategyDnC         strategyDnC;
 
+    // ── selection state ─────────────────────────────────────────────────────
     private int selectedRow = -1, selectedCol = -1;
 
-    private JButton[][] cellButtons = new JButton[N][N];
-    private JButton[] valueButtons = new JButton[N];
-    private JLabel statusLabel, humanScoreLabel, humanLivesLabel, cpuScoreLabel, cpuLivesLabel;
-    private JPanel valueSelectionPanel;
-    private JComboBox<String> strategyCombo;
-    private JCheckBox heatMapToggle;
-    private JTextArea reasoningArea;
+    // ── UI widgets ──────────────────────────────────────────────────────────
+    private JButton[][]  cellButtons     = new JButton[N][N];
+    private JButton[]    valueButtons    = new JButton[N];
+    private JLabel       statusLabel, humanScoreLabel, humanLivesLabel,
+            cpuScoreLabel,  cpuLivesLabel;
+    private JPanel       valueSelectionPanel;
+    private JCheckBox    heatMapToggle;
+    private JTextArea    reasoningArea;
 
-    private enum Strategy {
-        LIVES("Lives-Greedy (Survival)"),
-        COMPLETION("Completion-Greedy (Rusher)"),
-        SCORE("Score-Greedy (Gambler)"),
-        MRV("Constraint-Greedy (MRV)");
+    // ── strategy choice ─────────────────────────────────────────────────────
+    public enum AlgoChoice { DP, DNC }
+    private AlgoChoice currentAlgo = AlgoChoice.DP;
 
-        private final String name;
-        Strategy(String n) { name = n; }
-        public String toString() { return name; }
-    }
-
-    private Strategy currentStrategy = Strategy.LIVES;
-    private boolean showHeatMap = true;
+    // ── heat-map ─────────────────────────────────────────────────────────────
+    private boolean  showHeatMap   = true;
     private double[][] heatMapValues = new double[N][N];
 
-    public TowersssGameGUI() {
-        setTitle("Towers Puzzle - 4×4 with 4 AI Strategies");
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setLayout(new BorderLayout(20, 20));
-        getContentPane().setBackground(new Color(15, 23, 42)); // Dark slate background
+    // ── card-layout panels ──────────────────────────────────────────────────
+    private CardLayout cardLayout;
+    private JPanel     rootPanel;
 
-        initGame();
-        initComponents();
+    // ════════════════════════════════════════════════════════════════════════
+    //  Constructor
+    // ════════════════════════════════════════════════════════════════════════
+    public TowersssGameGUI() {
+        setTitle("Towers Puzzle — DP & D&C Strategies");
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+
+        cardLayout = new CardLayout();
+        rootPanel  = new JPanel(cardLayout);
+
+        rootPanel.add(buildSplashPanel(), "SPLASH");
+        rootPanel.add(buildGamePanel(),   "GAME");
+
+        setContentPane(rootPanel);
+        cardLayout.show(rootPanel, "SPLASH");
 
         pack();
-        setMinimumSize(new Dimension(1000, 1000));   // forces a nice big window
+        setMinimumSize(new Dimension(1100, 820));
         setResizable(true);
         setLocationRelativeTo(null);
-        //setResizable(false);
-        updateDisplay();
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    //  SPLASH / STRATEGY SELECTION PANEL
+    // ════════════════════════════════════════════════════════════════════════
+    private JPanel buildSplashPanel() {
 
-    // GAME INITIALIZATION
-    private void initGame() {
-        // Generate a valid puzzle with consistent clues
-        PuzzleGenerator generator = new PuzzleGenerator();
-        PuzzleGenerator.PuzzleData puzzle = generator.generatePuzzle();
+        // ── animated gradient background ────────────────────────────────────
+        AnimatedSplashBG bg = new AnimatedSplashBG();
+        bg.setLayout(new GridBagLayout());
 
-        // Initialize game state with generated clues
-        gameState = new GameState(
-                puzzle.topClues,
-                puzzle.rightClues,
-                puzzle.bottomClues,
-                puzzle.leftClues
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.gridx = 0; gc.gridy = 0; gc.anchor = GridBagConstraints.CENTER;
+
+        JPanel card = new JPanel();
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setOpaque(false);
+
+        // ── title block ─────────────────────────────────────────────────────
+        JLabel title = new JLabel("TOWERS PUZZLE");
+        title.setFont(new Font("Georgia", Font.BOLD | Font.ITALIC, 52));
+        title.setForeground(Color.WHITE);
+        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel subtitle = new JLabel("4 × 4  •  Strategic Height Deduction");
+        subtitle.setFont(new Font("Courier New", Font.PLAIN, 17));
+        subtitle.setForeground(new Color(180, 200, 255, 200));
+        subtitle.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // ── divider ─────────────────────────────────────────────────────────
+        JSeparator sep = new JSeparator();
+        sep.setMaximumSize(new Dimension(420, 2));
+        sep.setForeground(new Color(100, 140, 255, 150));
+
+        // ── section label ───────────────────────────────────────────────────
+        JLabel chooseLabel = new JLabel("CHOOSE  CPU  ALGORITHM");
+        chooseLabel.setFont(new Font("Courier New", Font.BOLD, 14));
+        chooseLabel.setForeground(new Color(160, 190, 255));
+        chooseLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // ── DP card ──────────────────────────────────────────────────────────
+        AlgoCard dpCard = new AlgoCard(
+                "DP",
+                "Dynamic Programming",
+                "Memoises sub-problems to\nfind globally optimal moves.\nSmart, but heavy on memory.",
+                new Color(56, 189, 248),    // sky-blue accent
+                new Color(14, 165, 233)
         );
 
-        // Initialize strategies
-        strategyLives = new StrategyLives(gameState);
-        strategyCompletion = new StrategyCompletion(gameState);
-        strategyScore = new StrategyScore(gameState);
-        strategyMRV = new StrategyMRV(gameState);
+        // ── D&C card ─────────────────────────────────────────────────────────
+        AlgoCard dncCard = new AlgoCard(
+                "D&C",
+                "Divide & Conquer",
+                "Recursively splits the board\ninto sub-problems & merges.\nFast & aggressive.",
+                new Color(167, 139, 250),   // violet accent
+                new Color(139, 92, 246)
+        );
+
+        // single-selection behaviour
+        dpCard .addActionListener(e -> { dpCard.setSelected(true);  dncCard.setSelected(false); currentAlgo = AlgoChoice.DP;  });
+        dncCard.addActionListener(e -> { dpCard.setSelected(false); dncCard.setSelected(true);  currentAlgo = AlgoChoice.DNC; });
+        dpCard.setSelected(true); // default
+
+        JPanel algoRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 24, 0));
+        algoRow.setOpaque(false);
+        algoRow.add(dpCard);
+        algoRow.add(dncCard);
+        algoRow.setAlignmentX(Component.CENTER_ALIGNMENT);
+        algoRow.setMaximumSize(new Dimension(500, 220));
+
+        // ── start button ─────────────────────────────────────────────────────
+        JButton startBtn = new JButton("START GAME") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                GradientPaint gp = new GradientPaint(0, 0, new Color(56, 189, 248),
+                        getWidth(), 0, new Color(139, 92, 246));
+                g2.setPaint(gp);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 14, 14);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        startBtn.setFont(new Font("Courier New", Font.BOLD, 20));
+        startBtn.setForeground(Color.WHITE);
+        startBtn.setContentAreaFilled(false);
+        startBtn.setBorderPainted(false);
+        startBtn.setFocusPainted(false);
+        startBtn.setPreferredSize(new Dimension(260, 56));
+        startBtn.setMaximumSize(new Dimension(260, 56));
+        startBtn.setAlignmentX(Component.CENTER_ALIGNMENT);
+        startBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+        startBtn.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) { startBtn.setOpaque(false); }
+            public void mouseExited (MouseEvent e) { startBtn.setOpaque(false); }
+        });
+
+        startBtn.addActionListener(e -> {
+            initGame();
+            updateHeatMap();
+            updateDisplay();
+            cardLayout.show(rootPanel, "GAME");
+        });
+
+        // ── assemble ─────────────────────────────────────────────────────────
+        card.add(Box.createVerticalStrut(10));
+        card.add(title);
+        card.add(Box.createVerticalStrut(6));
+        card.add(subtitle);
+        card.add(Box.createVerticalStrut(22));
+        card.add(sep);
+        card.add(Box.createVerticalStrut(22));
+        card.add(chooseLabel);
+        card.add(Box.createVerticalStrut(18));
+        card.add(algoRow);
+        card.add(Box.createVerticalStrut(30));
+        card.add(startBtn);
+        card.add(Box.createVerticalStrut(10));
+
+        bg.add(card, gc);
+        return bg;
     }
 
-    // GUI COMPONENTS
-    private void initComponents() {
+    // ════════════════════════════════════════════════════════════════════════
+    //  ANIMATED GRADIENT BACKGROUND PANEL
+    // ════════════════════════════════════════════════════════════════════════
+    static class AnimatedSplashBG extends JPanel {
+        private float offset = 0f;
+        private final Timer anim;
 
-        JPanel topPanel = new JPanel(new GridLayout(2, 2, 15, 8));
+        AnimatedSplashBG() {
+            setBackground(new Color(5, 8, 24));
+            anim = new Timer(30, e -> { offset += 0.008f; repaint(); });
+            anim.start();
+        }
+
+        @Override protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            int w = getWidth(), h = getHeight();
+
+            // base deep-navy fill
+            g2.setColor(new Color(5, 8, 24));
+            g2.fillRect(0, 0, w, h);
+
+            // slow-moving radial glow blobs
+            float[] cx = { (float)(w*0.3 + Math.sin(offset)*0.12*w),
+                    (float)(w*0.7 + Math.cos(offset*0.8)*0.10*w),
+                    (float)(w*0.5 + Math.sin(offset*1.3)*0.09*w) };
+            float[] cy = { (float)(h*0.35 + Math.cos(offset)*0.10*h),
+                    (float)(h*0.60 + Math.sin(offset*0.9)*0.12*h),
+                    (float)(h*0.20 + Math.cos(offset*1.1)*0.08*h) };
+            Color[] blobColors = {
+                    new Color(20, 60, 160, 90),
+                    new Color(80, 20, 180, 80),
+                    new Color(10, 120, 200, 70)
+            };
+            int[] radii = { 280, 220, 200 };
+
+            for (int i = 0; i < 3; i++) {
+                RadialGradientPaint rg = new RadialGradientPaint(
+                        cx[i], cy[i], radii[i],
+                        new float[]{0f, 1f},
+                        new Color[]{blobColors[i], new Color(0, 0, 0, 0)}
+                );
+                g2.setPaint(rg);
+                g2.fillRect(0, 0, w, h);
+            }
+
+            // subtle grid lines
+            g2.setColor(new Color(40, 60, 120, 25));
+            g2.setStroke(new BasicStroke(1));
+            for (int x = 0; x < w; x += 50) g2.drawLine(x, 0, x, h);
+            for (int y = 0; y < h; y += 50) g2.drawLine(0, y, w, y);
+
+            g2.dispose();
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  ALGORITHM SELECTION CARD WIDGET
+    // ════════════════════════════════════════════════════════════════════════
+    static class AlgoCard extends JPanel {
+        private boolean selected = false;
+        private final Color accentLight, accentDark;
+        private final java.util.List<ActionListener> listeners = new java.util.ArrayList<>();
+        private float hoverAlpha = 0f;
+        private final Timer hoverAnim;
+
+        AlgoCard(String tag, String name, String desc, Color accentLight, Color accentDark) {
+            this.accentLight = accentLight;
+            this.accentDark  = accentDark;
+
+            setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+            setOpaque(false);
+            setPreferredSize(new Dimension(200, 200));
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+            hoverAnim = new Timer(16, e -> repaint());
+
+            JLabel tagLbl = new JLabel(tag);
+            tagLbl.setFont(new Font("Courier New", Font.BOLD, 32));
+            tagLbl.setForeground(accentLight);
+            tagLbl.setAlignmentX(CENTER_ALIGNMENT);
+
+            JLabel nameLbl = new JLabel(name);
+            nameLbl.setFont(new Font("Georgia", Font.BOLD | Font.ITALIC, 14));
+            nameLbl.setForeground(Color.WHITE);
+            nameLbl.setAlignmentX(CENTER_ALIGNMENT);
+
+            JTextArea descArea = new JTextArea(desc);
+            descArea.setEditable(false);
+            descArea.setOpaque(false);
+            descArea.setFont(new Font("Courier New", Font.PLAIN, 11));
+            descArea.setForeground(new Color(180, 195, 230));
+            descArea.setLineWrap(true);
+            descArea.setWrapStyleWord(true);
+            descArea.setMaximumSize(new Dimension(170, 70));
+            descArea.setAlignmentX(CENTER_ALIGNMENT);
+
+            add(Box.createVerticalStrut(18));
+            add(tagLbl);
+            add(Box.createVerticalStrut(4));
+            add(nameLbl);
+            add(Box.createVerticalStrut(10));
+            add(descArea);
+            add(Box.createVerticalGlue());
+
+            addMouseListener(new MouseAdapter() {
+                public void mouseEntered(MouseEvent e) { hoverAlpha = 1f; hoverAnim.start(); }
+                public void mouseExited (MouseEvent e) { hoverAlpha = 0f; hoverAnim.start(); }
+                public void mouseClicked(MouseEvent e) {
+                    selected = true;
+                    for (ActionListener l : listeners) l.actionPerformed(null);
+                    repaint();
+                }
+            });
+        }
+
+        void addActionListener(ActionListener l) { listeners.add(l); }
+        void setSelected(boolean s) { selected = s; repaint(); }
+
+        @Override protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+            int w = getWidth(), h = getHeight();
+            RoundRectangle2D rr = new RoundRectangle2D.Float(2, 2, w-4, h-4, 18, 18);
+
+            // background fill
+            Color base = selected
+                    ? new Color(accentDark.getRed(), accentDark.getGreen(), accentDark.getBlue(), 60)
+                    : new Color(15, 25, 55, 200);
+            g2.setColor(base);
+            g2.fill(rr);
+
+            // border
+            float bw = selected ? 3f : (hoverAlpha > 0.1f ? 2f : 1.5f);
+            Color borderCol = selected ? accentLight
+                    : new Color(accentLight.getRed(), accentLight.getGreen(),
+                    accentLight.getBlue(), (int)(80 + 120*hoverAlpha));
+            g2.setStroke(new BasicStroke(bw));
+            g2.setColor(borderCol);
+            g2.draw(rr);
+
+            // glow when selected
+            if (selected) {
+                g2.setColor(new Color(accentLight.getRed(), accentLight.getGreen(),
+                        accentLight.getBlue(), 35));
+                g2.setStroke(new BasicStroke(10));
+                g2.draw(rr);
+            }
+
+            g2.dispose();
+            super.paintComponent(g);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  GAME PANEL
+    // ════════════════════════════════════════════════════════════════════════
+    private JPanel buildGamePanel() {
+        JPanel panel = new JPanel(new BorderLayout(20, 20)) {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setColor(new Color(5, 8, 24));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.dispose();
+            }
+        };
+        panel.setBackground(new Color(5, 8, 24));
+
+        // ── top scoreboards ──────────────────────────────────────────────────
+        JPanel topPanel = new JPanel(new GridLayout(2, 2, 14, 8));
         topPanel.setOpaque(false);
-        topPanel.setBorder(BorderFactory.createEmptyBorder(20, 25, 15, 25));
+        topPanel.setBorder(BorderFactory.createEmptyBorder(20, 25, 10, 25));
 
-        humanScoreLabel = createLabel("YOU - Score: 0", new Color(59, 130, 246), new Color(30, 58, 138));
-        cpuScoreLabel = createLabel("CPU - Score: 0", new Color(168, 85, 247), new Color(88, 28, 135));
-        humanLivesLabel = createLabel("Lives: 100", new Color(16, 185, 129), new Color(6, 78, 59));
-        cpuLivesLabel = createLabel("Lives: 100", new Color(239, 68, 68), new Color(127, 29, 29));
+        humanScoreLabel = createScoreLabel("YOU  •  Score: 0",  new Color(56, 189, 248));
+        cpuScoreLabel   = createScoreLabel("CPU  •  Score: 0",  new Color(167, 139, 250));
+        humanLivesLabel = createScoreLabel("❤  Lives: 100",    new Color(52, 211, 153));
+        cpuLivesLabel   = createScoreLabel("❤  Lives: 100",    new Color(251, 113, 133));
 
         topPanel.add(humanScoreLabel);
         topPanel.add(cpuScoreLabel);
         topPanel.add(humanLivesLabel);
         topPanel.add(cpuLivesLabel);
-        add(topPanel, BorderLayout.NORTH);
+        panel.add(topPanel, BorderLayout.NORTH);
 
-        // Game board with modern styling
+        // ── board ────────────────────────────────────────────────────────────
         JPanel boardPanel = new JPanel(new GridBagLayout());
         boardPanel.setOpaque(false);
-        boardPanel.setBorder(BorderFactory.createEmptyBorder(10, 25, 10, 25));
+        boardPanel.setBorder(BorderFactory.createEmptyBorder(8, 25, 8, 10));
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(3, 3, 3, 3);
+        gbc.insets = new Insets(4, 4, 4, 4);
 
-        // Top clues with modern styling
+        // top clues
         for (int i = 0; i < N; i++) {
-            gbc.gridx = i + 1; gbc.gridy = 0;
-            boardPanel.add(createClue(TOP[i]), gbc);
+            gbc.gridx = i+1; gbc.gridy = 0;
+            boardPanel.add(makeClueLabel(TOP[i], "↓"), gbc);
         }
-
-        // Board with left/right clues
+        // grid + side clues
         for (int r = 0; r < N; r++) {
-            gbc.gridx = 0; gbc.gridy = r + 1;
-            boardPanel.add(createClue(LEFT[r]), gbc);
+            gbc.gridx = 0; gbc.gridy = r+1;
+            boardPanel.add(makeClueLabel(LEFT[r], "→"), gbc);
+
             for (int c = 0; c < N; c++) {
                 final int row = r, col = c;
-                JButton btn = new JButton("");
-                btn.setPreferredSize(new Dimension(75, 75));
-                btn.setFont(new Font("Arial", Font.BOLD, 32));
-                btn.setBackground(Color.WHITE);
+                JButton btn = new JButton("") {
+                    @Override protected void paintComponent(Graphics g) {
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                                RenderingHints.VALUE_ANTIALIAS_ON);
+                        g2.setColor(getBackground());
+                        g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                        g2.dispose();
+                        super.paintComponent(g);
+                    }
+                    @Override protected void paintBorder(Graphics g) {
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                                RenderingHints.VALUE_ANTIALIAS_ON);
+                        g2.setColor(getForeground().equals(Color.WHITE)
+                                ? new Color(56, 189, 248, 120)
+                                : new Color(60, 75, 110, 180));
+                        g2.setStroke(new BasicStroke(2));
+                        g2.drawRoundRect(1, 1, getWidth()-2, getHeight()-2, 12, 12);
+                        g2.dispose();
+                    }
+                };
+                btn.setPreferredSize(new Dimension(78, 78));
+                btn.setFont(new Font("Georgia", Font.BOLD, 34));
+                btn.setContentAreaFilled(false);
                 btn.setFocusPainted(false);
-                btn.setBorder(BorderFactory.createLineBorder(new Color(200,200,200), 2));
-                btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
                 btn.addActionListener(e -> handleCellClick(row, col));
                 cellButtons[r][c] = btn;
-                gbc.gridx = c + 1; gbc.gridy = r + 1;
+                gbc.gridx = c+1; gbc.gridy = r+1;
                 boardPanel.add(btn, gbc);
             }
 
-            gbc.gridx = N + 1; gbc.gridy = r + 1;
-            boardPanel.add(createClue(RIGHT[r]), gbc);
+            gbc.gridx = N+1; gbc.gridy = r+1;
+            boardPanel.add(makeClueLabel(RIGHT[r], "←"), gbc);
         }
-
-        // Bottom clues
+        // bottom clues
         for (int i = 0; i < N; i++) {
-            gbc.gridx = i + 1; gbc.gridy = N + 1;
-            boardPanel.add(createClue(BOTTOM[i]), gbc);
+            gbc.gridx = i+1; gbc.gridy = N+1;
+            boardPanel.add(makeClueLabel(BOTTOM[i], "↑"), gbc);
         }
-        add(boardPanel, BorderLayout.CENTER);
+        panel.add(boardPanel, BorderLayout.CENTER);
 
-        // Right control panel with modern design - CLEAN & ALIGNED
-JPanel rightPanel = new JPanel();
-rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
-rightPanel.setOpaque(false);
-rightPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));  // padding around whole panel
-rightPanel.setPreferredSize(new Dimension(360, 0));  // slightly wider for breathing room
+        // ── right control panel ──────────────────────────────────────────────
+        JPanel rightPanel = new JPanel();
+        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
+        rightPanel.setOpaque(false);
+        rightPanel.setBorder(BorderFactory.createEmptyBorder(18, 10, 18, 22));
+        rightPanel.setPreferredSize(new Dimension(330, 0));
 
-// === STRATEGY CARD ===
-JPanel strategyCard = createModernCard();
-strategyCard.setLayout(new BoxLayout(strategyCard, BoxLayout.Y_AXIS));
-strategyCard.setAlignmentX(CENTER_ALIGNMENT);
-strategyCard.setMaximumSize(new Dimension(320, 140));
+        // algo badge
+        JPanel algoBadge = new JPanel(new BorderLayout());
+        algoBadge.setBackground(new Color(14, 20, 48));
+        algoBadge.setBorder(new CompoundBorder(
+                new LineBorder(new Color(56, 130, 220, 160), 2, true),
+                new EmptyBorder(10, 14, 10, 14)
+        ));
+        algoBadge.setMaximumSize(new Dimension(290, 80));
+        algoBadge.setAlignmentX(CENTER_ALIGNMENT);
 
-JLabel stratLabel = new JLabel(" CPU STRATEGY");
-stratLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-stratLabel.setForeground(new Color(148, 163, 184));
-stratLabel.setAlignmentX(CENTER_ALIGNMENT);
+        JLabel algoTagLbl = new JLabel("CPU ALGORITHM");
+        algoTagLbl.setFont(new Font("Courier New", Font.BOLD, 11));
+        algoTagLbl.setForeground(new Color(120, 150, 210));
 
-strategyCombo = new JComboBox<>();
-for (Strategy s : Strategy.values()) strategyCombo.addItem(s.toString());
-strategyCombo.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-strategyCombo.setMaximumSize(new Dimension(300, 40));
-strategyCombo.setAlignmentX(CENTER_ALIGNMENT);
-strategyCombo.setBackground(new Color(30, 41, 59));
-strategyCombo.setForeground(Color.WHITE);
-strategyCombo.addActionListener(e -> {
-    currentStrategy = Strategy.values()[strategyCombo.getSelectedIndex()];
-    updateHeatMap();
-    updateDisplay();
-});
+        // this label shows which algo was picked on the splash
+        JLabel algoNameLbl = new JLabel("–") {
+            // refreshed when game starts via updateAlgoBadge()
+        };
+        algoNameLbl.setName("ALGO_NAME");
+        algoNameLbl.setFont(new Font("Georgia", Font.BOLD | Font.ITALIC, 22));
+        algoNameLbl.setForeground(Color.WHITE);
 
-heatMapToggle = new JCheckBox(" Show Heat Map", true);
-heatMapToggle.setFont(new Font("Segoe UI", Font.BOLD, 14));
-heatMapToggle.setForeground(Color.WHITE);
-heatMapToggle.setOpaque(false);
-heatMapToggle.setAlignmentX(CENTER_ALIGNMENT);
-heatMapToggle.addActionListener(e -> {
-    showHeatMap = heatMapToggle.isSelected();
-    updateDisplay();
-});
+        algoBadge.add(algoTagLbl, BorderLayout.NORTH);
+        algoBadge.add(algoNameLbl, BorderLayout.CENTER);
 
-strategyCard.add(Box.createVerticalStrut(10));
-strategyCard.add(stratLabel);
-strategyCard.add(Box.createVerticalStrut(10));
-strategyCard.add(strategyCombo);
-strategyCard.add(Box.createVerticalStrut(15));
-strategyCard.add(heatMapToggle);
-strategyCard.add(Box.createVerticalStrut(10));
+        // heatmap toggle
+        heatMapToggle = new JCheckBox("  Show Heat Map", true);
+        heatMapToggle.setFont(new Font("Courier New", Font.BOLD, 13));
+        heatMapToggle.setForeground(new Color(180, 200, 255));
+        heatMapToggle.setOpaque(false);
+        heatMapToggle.setAlignmentX(CENTER_ALIGNMENT);
+        heatMapToggle.addActionListener(e -> { showHeatMap = heatMapToggle.isSelected(); updateDisplay(); });
 
-rightPanel.add(strategyCard);
-rightPanel.add(Box.createVerticalStrut(25)); 
+        // back-to-menu button
+        JButton backBtn = buildFancyBtn("◀  Change Algorithm", new Color(80, 100, 200));
+        backBtn.setAlignmentX(CENTER_ALIGNMENT);
+        backBtn.setMaximumSize(new Dimension(290, 46));
+        backBtn.addActionListener(e -> cardLayout.show(rootPanel, "SPLASH"));
 
-// === NEW GAME BUTTON ===
-JButton resetBtn = createModernButton("🔄 New Game", new Color(59, 130, 246));
-resetBtn.setAlignmentX(CENTER_ALIGNMENT);
-resetBtn.setMaximumSize(new Dimension(300, 55));
-resetBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
-resetBtn.addActionListener(e -> resetGame());
+        // new game button
+        JButton resetBtn = buildFancyBtn("⟳  New Game", new Color(22, 160, 120));
+        resetBtn.setAlignmentX(CENTER_ALIGNMENT);
+        resetBtn.setMaximumSize(new Dimension(290, 46));
+        resetBtn.addActionListener(e -> resetGame());
 
-rightPanel.add(resetBtn);
-rightPanel.add(Box.createVerticalStrut(25));
+        // reasoning card
+        JPanel reasonCard = buildDarkCard(290, 280);
+        reasonCard.setLayout(new BoxLayout(reasonCard, BoxLayout.Y_AXIS));
+        reasonCard.setAlignmentX(CENTER_ALIGNMENT);
 
-// === CPU REASONING CARD ===
-JPanel reasoningCard = createModernCard();
-reasoningCard.setLayout(new BoxLayout(reasoningCard, BoxLayout.Y_AXIS));
-reasoningCard.setAlignmentX(CENTER_ALIGNMENT);
-reasoningCard.setMaximumSize(new Dimension(320, 300)); 
+        JLabel reasonTitle = new JLabel("💭  CPU REASONING");
+        reasonTitle.setFont(new Font("Courier New", Font.BOLD, 12));
+        reasonTitle.setForeground(new Color(120, 155, 220));
+        reasonTitle.setAlignmentX(CENTER_ALIGNMENT);
 
-JLabel reasonLabel = new JLabel("💭 CPU REASONING");
-reasonLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-reasonLabel.setForeground(new Color(148, 163, 184));
-reasonLabel.setAlignmentX(CENTER_ALIGNMENT);
+        reasoningArea = new JTextArea(9, 22);
+        reasoningArea.setEditable(false);
+        reasoningArea.setFont(new Font("Courier New", Font.PLAIN, 12));
+        reasoningArea.setLineWrap(true);
+        reasoningArea.setWrapStyleWord(true);
+        reasoningArea.setBackground(new Color(8, 12, 30));
+        reasoningArea.setForeground(new Color(180, 210, 255));
+        reasoningArea.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        reasoningArea.setText("Select a cell to begin.\nWatch the CPU think…");
 
-reasoningArea = new JTextArea(10, 25);
-reasoningArea.setEditable(false);
-reasoningArea.setFont(new Font("Consolas", Font.PLAIN, 13));
-reasoningArea.setLineWrap(true);
-reasoningArea.setWrapStyleWord(true);
-reasoningArea.setBackground(new Color(15, 23, 42));
-reasoningArea.setForeground(new Color(203, 213, 225));
-reasoningArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-reasoningArea.setText("Select a strategy and watch the CPU think...");
+        JScrollPane reasonScroll = new JScrollPane(reasoningArea);
+        reasonScroll.setBorder(new LineBorder(new Color(40, 60, 110), 1));
+        reasonScroll.setOpaque(false);
+        reasonScroll.getViewport().setOpaque(false);
 
-JScrollPane reasonScroll = new JScrollPane(reasoningArea);
-reasonScroll.setBorder(BorderFactory.createLineBorder(new Color(51, 65, 85), 1));
-reasonScroll.setOpaque(false);
-reasonScroll.getViewport().setOpaque(false);
+        reasonCard.add(Box.createVerticalStrut(6));
+        reasonCard.add(reasonTitle);
+        reasonCard.add(Box.createVerticalStrut(6));
+        reasonCard.add(reasonScroll);
+        reasonCard.add(Box.createVerticalStrut(6));
 
-reasoningCard.add(Box.createVerticalStrut(5));
-reasoningCard.add(reasonLabel);
-reasoningCard.add(Box.createVerticalStrut(5));
-reasoningCard.add(reasonScroll);
-reasoningCard.add(Box.createVerticalStrut(5));
+        // value selection panel
+        valueSelectionPanel = buildValueSelectionPanel();
+        valueSelectionPanel.setAlignmentX(CENTER_ALIGNMENT);
+        valueSelectionPanel.setVisible(false);
 
-rightPanel.add(reasoningCard);
-rightPanel.add(Box.createVerticalStrut(25));  
-
-// === VALUE SELECTION PANEL ===
-valueSelectionPanel = new JPanel();
-valueSelectionPanel.setLayout(new BoxLayout(valueSelectionPanel, BoxLayout.Y_AXIS));
-valueSelectionPanel.setBackground(new Color(30, 41, 59));
-valueSelectionPanel.setBorder(BorderFactory.createCompoundBorder(
-    BorderFactory.createLineBorder(new Color(59, 130, 246), 3),
-    BorderFactory.createEmptyBorder(6, 6, 6, 6)
-));
-valueSelectionPanel.setMaximumSize(new Dimension(280, 200));
-valueSelectionPanel.setAlignmentX(CENTER_ALIGNMENT);
-valueSelectionPanel.setVisible(false);
-
-JLabel selectLabel = new JLabel("SELECT VALUE");
-selectLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
-selectLabel.setForeground(new Color(59, 130, 246));
-selectLabel.setAlignmentX(CENTER_ALIGNMENT);
-
-JPanel valGrid = new JPanel(new GridLayout(2, 2, 8, 8));
-valGrid.setOpaque(false);
-for (int i = 0; i < N; i++) {
-    final int val = i + 1;
-    JButton btn = createModernValueButton(String.valueOf(val));
-    btn.addActionListener(e -> handleValueClick(val));
-    valueButtons[i] = btn;
-    valGrid.add(btn);
-}
-
-JButton cancelBtn = createModernButton("Cancel", new Color(239, 68, 68));
-cancelBtn.setAlignmentX(CENTER_ALIGNMENT);
-cancelBtn.setMaximumSize(new Dimension(180, 25));
-cancelBtn.addActionListener(e -> {
-    selectedRow = -1; selectedCol = -1;
-    valueSelectionPanel.setVisible(false);
-    updateDisplay();
-});
-
-valueSelectionPanel.add(selectLabel);
-valueSelectionPanel.add(Box.createVerticalStrut(6));
-valueSelectionPanel.add(valGrid);
-valueSelectionPanel.add(Box.createVerticalStrut(10));
-valueSelectionPanel.add(cancelBtn);
-
-rightPanel.add(valueSelectionPanel);
-
-add(rightPanel, BorderLayout.EAST);
-
+        rightPanel.add(algoBadge);
+        rightPanel.add(Box.createVerticalStrut(12));
+        rightPanel.add(heatMapToggle);
+        rightPanel.add(Box.createVerticalStrut(14));
+        rightPanel.add(backBtn);
+        rightPanel.add(Box.createVerticalStrut(8));
+        rightPanel.add(resetBtn);
+        rightPanel.add(Box.createVerticalStrut(18));
+        rightPanel.add(reasonCard);
+        rightPanel.add(Box.createVerticalStrut(18));
         rightPanel.add(valueSelectionPanel);
-        add(rightPanel, BorderLayout.EAST);
 
-        // Bottom status with modern styling
-        JPanel bottomPanel = new JPanel();
+        panel.add(rightPanel, BorderLayout.EAST);
+
+        // ── bottom status bar ─────────────────────────────────────────────────
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
         bottomPanel.setOpaque(false);
-        bottomPanel.setBorder(BorderFactory.createEmptyBorder(15, 25, 25, 25));
+        bottomPanel.setBorder(BorderFactory.createEmptyBorder(12, 25, 22, 25));
 
         statusLabel = new JLabel("Your turn! Click an empty cell.", SwingConstants.CENTER);
-        statusLabel.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        statusLabel.setFont(new Font("Courier New", Font.BOLD, 15));
         statusLabel.setForeground(Color.WHITE);
         statusLabel.setOpaque(true);
-        statusLabel.setBackground(new Color(30, 41, 59));
-        statusLabel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(51, 65, 85), 2),
-                BorderFactory.createEmptyBorder(15, 30, 15, 30)));
-
+        statusLabel.setBackground(new Color(14, 20, 45));
+        statusLabel.setBorder(new CompoundBorder(
+                new LineBorder(new Color(50, 80, 150, 180), 2),
+                new EmptyBorder(12, 28, 12, 28)
+        ));
         bottomPanel.add(statusLabel);
-        add(bottomPanel, BorderLayout.SOUTH);
+        panel.add(bottomPanel, BorderLayout.SOUTH);
+
+        return panel;
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    //  VALUE SELECTION PANEL (inline picker)
+    // ════════════════════════════════════════════════════════════════════════
+    private JPanel buildValueSelectionPanel() {
+        JPanel p = new JPanel();
+        p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
+        p.setBackground(new Color(14, 22, 52));
+        p.setBorder(new CompoundBorder(
+                new LineBorder(new Color(56, 189, 248), 2, true),
+                new EmptyBorder(8, 8, 8, 8)
+        ));
+        p.setMaximumSize(new Dimension(290, 210));
 
-    private JLabel createLabel(String txt, Color fg, Color bg) {
-        JLabel l = new JLabel(txt, SwingConstants.CENTER);
-        l.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        l.setForeground(fg);
+        JLabel selLabel = new JLabel("SELECT  VALUE");
+        selLabel.setFont(new Font("Courier New", Font.BOLD, 13));
+        selLabel.setForeground(new Color(56, 189, 248));
+        selLabel.setAlignmentX(CENTER_ALIGNMENT);
+
+        JPanel grid = new JPanel(new GridLayout(2, 2, 8, 8));
+        grid.setOpaque(false);
+        for (int i = 0; i < N; i++) {
+            final int val = i + 1;
+            JButton btn = buildFancyBtn(String.valueOf(val), new Color(30, 100, 200));
+            btn.setFont(new Font("Georgia", Font.BOLD, 28));
+            btn.setPreferredSize(new Dimension(60, 60));
+            btn.addActionListener(e -> handleValueClick(val));
+            valueButtons[i] = btn;
+            grid.add(btn);
+        }
+
+        JButton cancelBtn = buildFancyBtn("Cancel", new Color(180, 50, 70));
+        cancelBtn.setAlignmentX(CENTER_ALIGNMENT);
+        cancelBtn.setMaximumSize(new Dimension(190, 36));
+        cancelBtn.addActionListener(e -> {
+            selectedRow = -1; selectedCol = -1;
+            valueSelectionPanel.setVisible(false);
+            updateDisplay();
+        });
+
+        p.add(selLabel);
+        p.add(Box.createVerticalStrut(8));
+        p.add(grid);
+        p.add(Box.createVerticalStrut(8));
+        p.add(cancelBtn);
+        return p;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  HELPERS  –  small reusable widgets
+    // ════════════════════════════════════════════════════════════════════════
+    private JLabel createScoreLabel(String text, Color accent) {
+        JLabel l = new JLabel(text, SwingConstants.CENTER);
+        l.setFont(new Font("Courier New", Font.BOLD, 15));
+        l.setForeground(accent);
         l.setOpaque(true);
-        l.setBackground(bg);
-        l.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(fg.brighter(), 2),
-            BorderFactory.createEmptyBorder(10, 20, 10, 20)));
+        l.setBackground(new Color(10, 18, 40));
+        l.setBorder(new CompoundBorder(
+                new LineBorder(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 160), 2),
+                new EmptyBorder(8, 18, 8, 18)
+        ));
         return l;
     }
 
-    private JPanel createModernCard() {
+    private JLabel makeClueLabel(int v, String arrow) {
+        JLabel l = new JLabel(arrow + " " + v, SwingConstants.CENTER);
+        l.setFont(new Font("Courier New", Font.BOLD, 15));
+        l.setForeground(new Color(130, 170, 255));
+        l.setOpaque(true);
+        l.setBackground(new Color(14, 22, 50));
+        l.setBorder(new CompoundBorder(
+                new LineBorder(new Color(50, 80, 150), 2),
+                new EmptyBorder(4, 4, 4, 4)
+        ));
+        l.setPreferredSize(new Dimension(60, 60));
+        return l;
+    }
+
+    private JButton buildFancyBtn(String text, Color color) {
+        JButton btn = new JButton(text) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                Color bg = getModel().isRollover() ? color.brighter() : color;
+                g2.setColor(bg);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 10, 10);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setFont(new Font("Courier New", Font.BOLD, 13));
+        btn.setForeground(Color.WHITE);
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setPreferredSize(new Dimension(180, 42));
+        return btn;
+    }
+
+    private JPanel buildDarkCard(int maxW, int maxH) {
         JPanel card = new JPanel();
-        card.setBackground(new Color(30, 41, 59));
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(51, 65, 85), 2),
-                BorderFactory.createEmptyBorder(15, 15, 15, 15)));
-        card.setMaximumSize(new Dimension(280, 200));
+        card.setBackground(new Color(10, 16, 38));
+        card.setBorder(new CompoundBorder(
+                new LineBorder(new Color(40, 60, 120), 2),
+                new EmptyBorder(10, 10, 10, 10)
+        ));
+        card.setMaximumSize(new Dimension(maxW, maxH));
         return card;
     }
 
-    private JButton createModernButton(String text, Color color) {
-        JButton btn = new JButton(text);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 15));
-        btn.setBackground(color);
-        btn.setForeground(Color.WHITE);
-        btn.setFocusPainted(false);
-        btn.setBorderPainted(false);
-        btn.setMaximumSize(new Dimension(300, 50));
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    // ════════════════════════════════════════════════════════════════════════
+    //  GAME INITIALIZATION
+    // ════════════════════════════════════════════════════════════════════════
+    private void initGame() {
+        PuzzleGenerator generator = new PuzzleGenerator();
+        PuzzleGenerator.PuzzleData puzzle = generator.generatePuzzle();
 
-        btn.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) {
-                btn.setBackground(color.brighter());
-            }
-            public void mouseExited(MouseEvent e) {
-                btn.setBackground(color);
-            }
-        });
+        gameState = new GameState(
+                puzzle.topClues, puzzle.rightClues,
+                puzzle.bottomClues, puzzle.leftClues
+        );
 
-        return btn;
+        strategyDP  = new StrategyDP(gameState);
+        strategyDnC = new StrategyDnC(gameState);
+
+        // refresh the algo badge label on the game panel
+        updateAlgoBadge();
     }
 
-    private JButton createModernValueButton(String text) {
-        JButton btn = new JButton(text);
-        btn.setPreferredSize(new Dimension(55, 55));
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 28));
-        btn.setBackground(new Color(59, 130, 246));
-        btn.setForeground(Color.WHITE);
-        btn.setFocusPainted(false);
-        btn.setBorderPainted(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        btn.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) {
-                if (btn.isEnabled()) btn.setBackground(new Color(37, 99, 235));
-            }
-            public void mouseExited(MouseEvent e) {
-                if (btn.isEnabled()) btn.setBackground(new Color(59, 130, 246));
-            }
-        });
-
-        return btn;
+    /** Finds the ALGO_NAME label in the game panel and updates it. */
+    private void updateAlgoBadge() {
+        // walk the component tree
+        JPanel gamePanel = (JPanel) rootPanel.getComponent(1);
+        updateAlgoBadgeIn(gamePanel);
     }
 
-    
-    private JLabel createClue(int v) {
-        JLabel l = new JLabel(String.valueOf(v), SwingConstants.CENTER);
-        l.setFont(new Font("Arial", Font.BOLD, 20));
-        l.setForeground(new Color(79, 70, 229));
-        l.setPreferredSize(new Dimension(40, 40));
-        return l;}
-
-    private JLabel createModernClue(int v, String arrow) {
-    String html;
-    if (arrow.equals("→") || arrow.equals("←")) {
-        html = "<html><center>" + (arrow.equals("→") ? arrow + " <b>" + v + "</b>" : "<b>" + v + "</b> " + arrow) + "</center></html>";
-    } else {
-        html = "<html><center>" + arrow + "<br><b>" + v + "</b></center></html>";
-    }
-    JLabel l = new JLabel(html, SwingConstants.CENTER);
-    l.setFont(new Font("Segoe UI", Font.BOLD, 16));  // Reduced from 18 to fit better in square
-    l.setForeground(new Color(148, 163, 184));
-    l.setOpaque(true);
-    l.setBackground(new Color(30, 41, 59));
-    //l.setBorder(BorderFactory.createLineBorder(new Color(51, 65, 85), 2));
-    l.setBorder(BorderFactory.createCompoundBorder(
-    BorderFactory.createLineBorder(new Color(71, 85, 105), 3),
-    BorderFactory.createEmptyBorder(5, 5, 5, 5)
-));
-    l.setPreferredSize(new Dimension(95, 95));  // Match cell size for uniformity
-    return l;
-}
-
-    class ModernCellButton extends JButton {
-        public ModernCellButton(String text) {
-            super(text);
-            setContentAreaFilled(false);
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-            if (getModel().isPressed()) {
-                g2.setColor(getBackground().darker());
-            } else {
-                g2.setColor(getBackground());
+    private void updateAlgoBadgeIn(Container c) {
+        for (Component comp : c.getComponents()) {
+            if (comp instanceof JLabel) {
+                JLabel lbl = (JLabel) comp;
+                if ("ALGO_NAME".equals(lbl.getName())) {
+                    if (currentAlgo == AlgoChoice.DP) {
+                        lbl.setText("Dynamic Programming");
+                        lbl.setForeground(new Color(56, 189, 248));
+                    } else {
+                        lbl.setText("Divide && Conquer");
+                        lbl.setForeground(new Color(167, 139, 250));
+                    }
+                    return;
+                }
             }
-
-            g2.fill(new RoundRectangle2D.Float(0, 0, getWidth(), getHeight(), 12, 12));
-            super.paintComponent(g2);
-            g2.dispose();
-        }
-
-        @Override
-        protected void paintBorder(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(getForeground());
-            g2.setStroke(new BasicStroke(2));
-            g2.draw(new RoundRectangle2D.Float(1, 1, getWidth() - 2, getHeight() - 2, 12, 12));
-            g2.dispose();
+            if (comp instanceof Container) updateAlgoBadgeIn((Container) comp);
         }
     }
 
-    // USER INTERACTION
+    // ════════════════════════════════════════════════════════════════════════
+    //  USER INTERACTION
+    // ════════════════════════════════════════════════════════════════════════
     private void handleCellClick(int r, int c) {
-        if (!gameState.isHumanTurn() || gameState.isGameOver() || gameState.getGrid()[r][c] != 0) {
-            return;
-        }
+        if (!gameState.isHumanTurn() || gameState.isGameOver() || gameState.getGrid()[r][c] != 0) return;
         selectedRow = r;
         selectedCol = c;
         showValueSelection();
@@ -450,16 +733,9 @@ add(rightPanel, BorderLayout.EAST);
     }
 
     private void showValueSelection() {
-        int[] topClues = gameState.getTopClues();
-        int[] rightClues = gameState.getRightClues();
-        int[] bottomClues = gameState.getBottomClues();
-        int[] leftClues = gameState.getLeftClues();
-
         for (int i = 0; i < N; i++) {
-            int val = i + 1;
-            boolean legal = gameState.checkLegalMove(selectedRow, selectedCol, val);
+            boolean legal = gameState.checkLegalMove(selectedRow, selectedCol, i+1);
             valueButtons[i].setEnabled(legal);
-            valueButtons[i].setBackground(legal ? new Color(59, 130, 246) : new Color(71, 85, 105));
         }
         valueSelectionPanel.setVisible(true);
         statusLabel.setText("Choose a value for cell (" + (selectedRow+1) + "," + (selectedCol+1) + ")");
@@ -468,123 +744,43 @@ add(rightPanel, BorderLayout.EAST);
     private void handleValueClick(int val) {
         if (selectedRow == -1) return;
 
-        // Check for deadlock BEFORE allowing move
         if (gameState.checkForDeadlock(true)) {
-            statusLabel.setText("You have no legal moves! -5 lives, skipping turn");
-            selectedRow = -1;
-            selectedCol = -1;
+            statusLabel.setText("No legal moves! −5 lives, skipping turn.");
+            selectedRow = -1; selectedCol = -1;
             valueSelectionPanel.setVisible(false);
             gameState.setHumanTurn(false);
             updateDisplay();
-            
-            Timer delay = new Timer(1500, e -> {
-                if (!checkGameEnd()) {
-                    updateHeatMap();
-                    animateHeatMap(0);
-                }
-            });
-            delay.setRepeats(false);
-            delay.start();
+            new Timer(1500, e -> {
+                if (!checkGameEnd()) { updateHeatMap(); animateHeatMap(0); }
+            }) {{ setRepeats(false); }}.start();
             return;
         }
 
-        boolean moveAccepted = gameState.makeMove(selectedRow, selectedCol, val, true);
-        
-
-        selectedRow = -1;
-        selectedCol = -1;
+        boolean accepted = gameState.makeMove(selectedRow, selectedCol, val, true);
+        selectedRow = -1; selectedCol = -1;
         valueSelectionPanel.setVisible(false);
-        
-        // ONLY switch turns if move was valid (not rejected)
-        if (moveAccepted) {
-            gameState.setHumanTurn(false);
-        }
-        
-        // Clear heat map immediately after human move
+        if (accepted) gameState.setHumanTurn(false);
         clearHeatMap();
         updateDisplay();
-
         if (checkGameEnd()) return;
-
-        // Only proceed to CPU turn if move was accepted
-        if (moveAccepted) {
-            Timer delay = new Timer(600, e -> {
-                updateHeatMap();
-                animateHeatMap(0);
-            });
-            delay.setRepeats(false);
-            delay.start();
-        }
+        if (accepted)
+            new Timer(600, e -> { updateHeatMap(); animateHeatMap(0); }) {{ setRepeats(false); }}.start();
     }
 
-    // HEAT MAP ANIMATION & COLORS
-    private void animateHeatMap(int idx) {
-        if (idx >= N * N) {
-            Timer delay = new Timer(1200, e -> {
-                if (!gameState.isGameOver()) {
-                    doCPUMove();
-                    clearHeatMap(); // Clear heat map after CPU move
-                    gameState.setHumanTurn(true);
-                    updateDisplay();
-                    checkGameEnd();
-                }
-            });
-            delay.setRepeats(false);
-            delay.start();
-            return;
-        }
-
-        int r = idx / N, c = idx % N;
-        if (gameState.getGrid()[r][c] == 0 && showHeatMap) {
-            cellButtons[r][c].setBackground(getHeatColor(heatMapValues[r][c]));
-        }
-
-        Timer t = new Timer(70, e -> animateHeatMap(idx + 1));
-        t.setRepeats(false);
-        t.start();
-    }
-
-    private Color getHeatColor(double h) {
-        if (h < 0.01) return new Color(30, 41, 59);
-
-        double ratio = Math.min(h, 1.0);
-
-        return switch (currentStrategy) {
-            case LIVES ->       new Color(34 + (int)(151 * ratio), 185 + (int)(31 * ratio), 95 + (int)(125 * ratio));
-            case COMPLETION ->  new Color(239 + (int)(15 * ratio), 68 + (int)(82 * ratio), 68 + (int)(82 * ratio));
-            case SCORE ->       new Color(255, 165 + (int)(90 * ratio), 0);
-            case MRV ->         new Color(130 + (int)(56 * ratio), 39, 144 + (int)(64 * ratio));
-        };
-    }
-
-    private void clearHeatMap() {
-        for (int r = 0; r < N; r++) {
-            for (int c = 0; c < N; c++) {
-                if (gameState.getGrid()[r][c] == 0) {
-                    cellButtons[r][c].setBackground(
-                            (r == selectedRow && c == selectedCol) ? new Color(59, 130, 246) : new Color(30, 41, 59)
-                    );
-                }
-            }
-        }
-    }
-
-    // CPU MOVE
+    // ════════════════════════════════════════════════════════════════════════
+    //  CPU MOVE
+    // ════════════════════════════════════════════════════════════════════════
     private void doCPUMove() {
-        // Check for deadlock for CPU
         if (gameState.checkForDeadlock(false)) {
-            statusLabel.setText("CPU has no legal moves! -5 lives, skipping turn");
+            statusLabel.setText("CPU has no legal moves! −5 lives, skipping turn.");
             gameState.setHumanTurn(true);
             updateDisplay();
             return;
         }
-        
-        int[] move = switch (currentStrategy) {
-            case LIVES -> strategyLives.findBestMove();
-            case COMPLETION -> strategyCompletion.findBestMove();
-            case SCORE -> strategyScore.findBestMove();
-            case MRV -> strategyMRV.findBestMove();
-        };
+
+        int[] move = (currentAlgo == AlgoChoice.DP)
+                ? strategyDP.findBestMove()
+                : strategyDnC.findBestMove();
 
         if (move == null) {
             gameState.setStatusMessage("CPU has no valid moves!");
@@ -594,28 +790,23 @@ add(rightPanel, BorderLayout.EAST);
         }
 
         reasoningArea.setText(gameState.getCpuReasoningExplanation());
-        boolean moveAccepted = gameState.makeMove(move[0], move[1], move[2], false);
-
-        // Clear heat map values after CPU move
-        for (int r = 0; r < N; r++) {
-            for (int c = 0; c < N; c++) {
+        gameState.makeMove(move[0], move[1], move[2], false);
+        for (int r = 0; r < N; r++)
+            for (int c = 0; c < N; c++)
                 heatMapValues[r][c] = 0;
-            }
-        }
     }
 
-    // HEAT MAP CALCULATION
+    // ════════════════════════════════════════════════════════════════════════
+    //  HEAT MAP
+    // ════════════════════════════════════════════════════════════════════════
     private void updateHeatMap() {
         double max = 0;
         for (int r = 0; r < N; r++) {
             for (int c = 0; c < N; c++) {
                 if (gameState.getGrid()[r][c] == 0) {
-                    double score = switch (currentStrategy) {
-                        case LIVES -> strategyLives.evaluateCell(r, c);
-                        case COMPLETION -> strategyCompletion.evaluateCell(r, c);
-                        case SCORE -> strategyScore.evaluateCell(r, c);
-                        case MRV -> strategyMRV.evaluateCell(r, c);
-                    };
+                    double score = (currentAlgo == AlgoChoice.DP)
+                            ? strategyDP.evaluateCell(r, c)
+                            : strategyDnC.evaluateCell(r, c);
                     heatMapValues[r][c] = score;
                     max = Math.max(max, score);
                 } else {
@@ -623,17 +814,64 @@ add(rightPanel, BorderLayout.EAST);
                 }
             }
         }
-
-        if (max > 0) {
-            for (int r = 0; r < N; r++) {
-                for (int c = 0; c < N; c++) {
+        if (max > 0)
+            for (int r = 0; r < N; r++)
+                for (int c = 0; c < N; c++)
                     heatMapValues[r][c] /= max;
-                }
-            }
-        }
     }
 
-    // DISPLAY UPDATE
+    private void animateHeatMap(int idx) {
+        if (idx >= N * N) {
+            new Timer(1200, e -> {
+                if (!gameState.isGameOver()) {
+                    doCPUMove();
+                    clearHeatMap();
+                    gameState.setHumanTurn(true);
+                    updateDisplay();
+                    checkGameEnd();
+                }
+            }) {{ setRepeats(false); }}.start();
+            return;
+        }
+        int r = idx / N, c = idx % N;
+        if (gameState.getGrid()[r][c] == 0 && showHeatMap)
+            cellButtons[r][c].setBackground(heatColor(heatMapValues[r][c]));
+
+        new Timer(70, e -> animateHeatMap(idx + 1)) {{ setRepeats(false); }}.start();
+    }
+
+    private Color heatColor(double h) {
+        if (h < 0.01) return new Color(12, 20, 45);
+        double t = Math.min(h, 1.0);
+        return (currentAlgo == AlgoChoice.DP)
+                // sky-blue → teal gradient for DP
+                ? blend(new Color(14, 40, 100), new Color(56, 189, 248), t)
+                // purple → violet gradient for D&C
+                : blend(new Color(50, 14, 100), new Color(200, 140, 255), t);
+    }
+
+    private Color blend(Color a, Color b, double t) {
+        return new Color(
+                (int)(a.getRed()   + (b.getRed()   - a.getRed())   * t),
+                (int)(a.getGreen() + (b.getGreen() - a.getGreen()) * t),
+                (int)(a.getBlue()  + (b.getBlue()  - a.getBlue())  * t)
+        );
+    }
+
+    private void clearHeatMap() {
+        for (int r = 0; r < N; r++)
+            for (int c = 0; c < N; c++)
+                if (gameState.getGrid()[r][c] == 0)
+                    cellButtons[r][c].setBackground(
+                            (r == selectedRow && c == selectedCol)
+                                    ? new Color(30, 90, 200)
+                                    : new Color(12, 20, 45)
+                    );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  DISPLAY UPDATE
+    // ════════════════════════════════════════════════════════════════════════
     private void updateDisplay() {
         for (int r = 0; r < N; r++) {
             for (int c = 0; c < N; c++) {
@@ -641,73 +879,75 @@ add(rightPanel, BorderLayout.EAST);
                 int val = gameState.getGrid()[r][c];
                 if (val != 0) {
                     b.setText(String.valueOf(val));
-                    b.setBackground(new Color(59, 130, 246));
+                    b.setBackground(new Color(22, 80, 170));
                     b.setForeground(Color.WHITE);
                     b.setEnabled(false);
-                    b.setBorder(BorderFactory.createLineBorder(new Color(37, 99, 235), 2));
                 } else {
                     b.setText("");
-                    if (r == selectedRow && c == selectedCol) {
-                        b.setBackground(new Color(59, 130, 246));
-                        b.setBorder(BorderFactory.createLineBorder(new Color(37, 99, 235), 4));
-                    } else {
-                        b.setBackground(showHeatMap && heatMapValues[r][c] > 0.01 ?
-                                getHeatColor(heatMapValues[r][c]) : new Color(30, 41, 59));
-                        b.setBorder(BorderFactory.createLineBorder(new Color(51, 65, 85), 2));
-                    }
                     b.setEnabled(gameState.isHumanTurn() && !gameState.isGameOver());
+                    if (r == selectedRow && c == selectedCol) {
+                        b.setBackground(new Color(30, 90, 200));
+                        b.setForeground(new Color(56, 189, 248));
+                    } else {
+                        b.setBackground(showHeatMap && heatMapValues[r][c] > 0.01
+                                ? heatColor(heatMapValues[r][c])
+                                : new Color(12, 20, 45));
+                        b.setForeground(new Color(60, 80, 130));
+                    }
                 }
             }
         }
 
-        humanScoreLabel.setText("YOU - Score: " + gameState.getHumanScore());
+        humanScoreLabel.setText("YOU  •  Score: " + gameState.getHumanScore());
         humanLivesLabel.setText("Lives: " + gameState.getHumanLives());
-        cpuScoreLabel.setText("CPU - Score: " + gameState.getCpuScore());
-        cpuLivesLabel.setText("Lives: " + gameState.getCpuLives());
+        cpuScoreLabel  .setText("CPU  •  Score: " + gameState.getCpuScore());
+        cpuLivesLabel  .setText("Lives: " + gameState.getCpuLives());
 
         String msg = gameState.getStatusMessage();
         if (!msg.isEmpty()) {
             statusLabel.setText(msg);
         } else if (gameState.isHumanTurn()) {
-            statusLabel.setText(selectedRow == -1 ? "✨ Your turn! Click a cell." : "🎯 Select a value");
+            statusLabel.setText(selectedRow == -1 ? "✦ Your turn — click a cell" : "✦ Choose a value");
         } else {
-            statusLabel.setText("🤔 CPU thinking (" + currentStrategy + ")...");
+            String algoName = currentAlgo == AlgoChoice.DP ? "DP" : "D&C";
+            statusLabel.setText("⟳  CPU thinking  [ " + algoName + " ] …");
         }
     }
 
-
-    // GAME END & RESET
+    // ════════════════════════════════════════════════════════════════════════
+    //  GAME END  &  RESET
+    // ════════════════════════════════════════════════════════════════════════
     private boolean checkGameEnd() {
-        if (gameState.isGameOver()) {
-            String winner = gameState.getWinner();
-            if (winner == null) winner = "Game Over";
+        if (!gameState.isGameOver()) return false;
+        String winner = gameState.getWinner();
+        if (winner == null) winner = "Game Over";
+        statusLabel.setText(winner);
 
-            statusLabel.setText(winner);
+        String msg = "═══  GAME OVER  ═══\n\n"
+                + winner + "\n\n"
+                + "YOU  →  Score: " + gameState.getHumanScore()
+                +        "  |  Lives: " + gameState.getHumanLives() + "\n"
+                + "CPU  →  Score: " + gameState.getCpuScore()
+                +        "  |  Lives: " + gameState.getCpuLives();
 
-            String msg = "═══ GAME OVER ═══\n\n" +
-                    winner + "\n\n" +
-                    "Final Stats:\n" +
-                    "YOU → Score: " + gameState.getHumanScore() + " | Lives: " + gameState.getHumanLives() + "\n" +
-                    "CPU → Score: " + gameState.getCpuScore() + " | Lives: " + gameState.getCpuLives();
-
-            JOptionPane.showMessageDialog(this, msg, "Game Over", JOptionPane.INFORMATION_MESSAGE);
-            return true;
-        }
-        return false;
+        JOptionPane.showMessageDialog(this, msg, "Game Over", JOptionPane.INFORMATION_MESSAGE);
+        return true;
     }
 
     private void resetGame() {
         initGame();
-        selectedRow = -1;
-        selectedCol = -1;
+        selectedRow = -1; selectedCol = -1;
         valueSelectionPanel.setVisible(false);
-        reasoningArea.setText("Select a strategy and watch the CPU think...");
+        reasoningArea.setText("New game — watch the CPU think…");
+        clearHeatMap();
         updateHeatMap();
         updateDisplay();
-        statusLabel.setText("✨ New game started! Your turn.");
+        statusLabel.setText("✦ New game started — your turn.");
     }
 
-    // MAIN
+    // ════════════════════════════════════════════════════════════════════════
+    //  ENTRY POINT
+    // ════════════════════════════════════════════════════════════════════════
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new TowersssGameGUI().setVisible(true));
     }
