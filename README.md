@@ -1,114 +1,295 @@
+# 🏗️ 4×4 Towers Puzzle Game  
+### Greedy, Dynamic Programming & Divide-and-Conquer AI
 
+---
 
-## Project Overview
-This project implements an interactive **4×4 Towers Puzzle Game** featuring the CPU as a competitive opponent that employs four distinct **greedy algorithm strategies**. Built in Java with Swing GUI, the application demonstrates practical applications of greedy algorithms in game AI and constraint satisfaction problems.
+## 📌 Project Overview
+This project implements an interactive **4×4 Towers (Skyscraper) Puzzle Game** featuring a CPU opponent that employs multiple algorithmic strategies.
 
-## What is the Towers Puzzle?
+Built in **Java using Swing GUI**, the application demonstrates practical applications of:
+
+- Greedy Algorithms  
+- Dynamic Programming  
+- Divide and Conquer  
+- Constraint Satisfaction Problems (CSP)  
+- Heuristic Game AI  
+
+---
+
+## 🧩 What is the Towers Puzzle?
+
 The Towers Puzzle is a logic game where:
-- Players fill a 4×4 grid with numbers 1-4
+
+- Players fill a 4×4 grid with numbers **1–4**
 - No number repeats in any row or column
 - Numbers represent building heights
-- Border clues indicate how many "buildings" are visible from each direction (taller buildings obscure shorter ones)
+- Border clues indicate how many "buildings" are visible from each direction  
+  (Taller buildings obscure shorter ones)
 
-## Greedy Algorithm Implementation
-This project showcases **four greedy strategies**, each optimizing different objectives:
+It is essentially a **constraint satisfaction + permutation validation problem**.
 
-### 1. Lives-Greedy Strategy (Survival)
+---
+
+# 🟢 Greedy Algorithm Implementation
+
+This project initially implemented **four greedy strategies**, each optimizing different objectives.
+
+---
+
+## 1️⃣ Lives-Greedy Strategy (Survival)
+
 **Objective:** Minimize risk and maximize survival  
-**Approach:** Prioritizes cells with fewer legal options to reduce guessing  
-**Greedy Choice:** Select moves with highest safety probability
 
-### 2. Completion-Greedy Strategy (Rusher)
-**Objective:** Complete the puzzle as quickly as possible  
-**Approach:** Focuses on nearly-complete rows and columns  
-**Greedy Choice:** Fill cells that maximize completion percentage
+**Approach:**  
+- Evaluate all empty cells  
+- Prefer cells with maximum legal values  
+- Reduce deadlock probability  
 
-### 3. Score-Greedy Strategy (Gambler)
-**Objective:** Maximize point accumulation  
-**Approach:** Evaluates immediate score gains vs. risk  
-**Greedy Choice:** Select highest potential point value moves
+**Greedy Choice:**  
+Select the safest move with highest flexibility.
 
-### 4. Constraint-Greedy Strategy (MRV)
-**Objective:** Apply Minimum Remaining Values heuristic  
-**Approach:** Uses CSP principles to reduce branching factor  
-**Greedy Choice:** Fill cells with fewest remaining legal values first
+**Time Complexity:** `O(N³)`  
+**Space Complexity:** `O(N²)`  
+**Optimality:** Local
 
-## Technical Details
+---
 
-### Core Algorithm Structure
-Each strategy implements:
+## 2️⃣ Completion-Greedy Strategy (Rusher)
+
+**Objective:** Complete rows and columns quickly  
+
+**Approach:**  
+- Prioritize nearly complete rows/columns  
+- Fill cells that maximize completion percentage  
+
+**Greedy Choice:**  
+Choose move that increases completion ratio the most.
+
+**Time Complexity:** `O(N⁴)`  
+**Space Complexity:** `O(N²)`  
+**Optimality:** Local
+
+---
+
+## 3️⃣ Score-Greedy Strategy (Gambler)
+
+**Objective:** Maximize immediate score  
+
+**Approach:**  
+- Simulate scoring impact  
+- Evaluate row/column completion bonus  
+- Compare risk vs reward  
+
+**Greedy Choice:**  
+Select highest immediate point gain.
+
+**Time Complexity:** `O(N⁵)`  
+**Space Complexity:** `O(N²)`  
+**Optimality:** Local
+
+---
+
+## 4️⃣ Constraint-Greedy Strategy (MRV)
+
+(Minimum Remaining Values Heuristic)
+
+**Objective:** Reduce branching factor  
+
+**Approach:**  
+- Select cell with fewest legal values  
+- Apply CSP principles  
+
+**Greedy Choice:**  
+Fill cell with minimum remaining legal values first.
+
+**Time Complexity:** `O(N³)`  
+**Space Complexity:** `O(N²)`  
+**Optimality:** Local (Heuristic-based)
+
+---
+
+# 🔵 Phase 2: Advanced Algorithmic Strategies
+
+To extend the project beyond greedy heuristics, two advanced approaches were implemented:
+
+---
+
+## 5️⃣ Dynamic Programming Strategy
+
+**Objective:** Avoid recomputation and optimize subproblem reuse.
+
+### Core Idea
+- Break puzzle into smaller subproblems
+- Store previously computed board states
+- Use memoization to avoid recalculating valid configurations
+
+### DP State May Include:
+- Current row index  
+- Column usage mask  
+- Used numbers mask  
+- Partial visibility validation  
+
+### Working Principle:
+1. Generate valid row permutations  
+2. Use memoization for partial board states  
+3. Build solution row-by-row  
+4. Reuse previously computed configurations  
+
+### Time Complexity:
+- Row permutations: `O(N!)`  
+- DP transitions: `O(N² · 2^N)`  
+- Optimized practical complexity: `≈ O(N² · 2^N)`
+
+### Space Complexity:
+`O(N · 2^N)`
+
+### Optimality:
+Global (finds correct solution if fully explored)
+
+---
+
+## 6️⃣ Divide and Conquer Strategy
+
+**Objective:** Solve puzzle by recursively dividing into smaller subproblems.
+
+### Core Idea
+1. Divide:
+   - Solve one row at a time  
+
+2. Conquer:
+   - Recursively solve remaining rows  
+
+3. Combine:
+   - Validate column constraints  
+   - Validate visibility clues  
+
+### Recurrence:
+T(N) = N × T(N-1)
+
+### Time Complexity:
+`O(N!)`
+
+### Space Complexity:
+`O(N²)`
+
+### Optimality:
+Global (exhaustive search)
+
+---
+
+# ⚙️ Core Algorithm Structure
+
+Each greedy strategy implements:
+
 ```java
-double evaluateCell(int row, int col)
-// Calculates heuristic score for each empty cell
-// Time Complexity: O(N²) for full board evaluation
+double evaluateCell(int row, int col);
+// Calculates heuristic score
 
-int[] findBestMove()
-// Selects optimal move based on strategy's greedy criterion
-// Time Complexity: O(N³) worst case
+int[] findBestMove();
+// Selects best move based on strategy
 ```
 
-### Key Features
-- **Real-time visualization:** Heat maps show AI decision-making process
-- **Move validation:** O(N) constraint checking per move
-- **Clue verification:** O(N) visibility calculation per direction
-- **Dynamic scoring:** Rewards valid moves, penalizes violations
-- **Deadlock detection:** Identifies no-legal-moves scenarios
+DP & D&C strategies implement:
 
-## How to Run
+```java
+boolean solveBoard(int row);
+// Recursive or memoized solver
+```
+
+---
+
+## 🎮 Key Features
+
+- Real-time visualization  
+- Heat map showing AI decision-making  
+- O(N) constraint checking per move  
+- O(N) visibility calculation per direction  
+- Dynamic scoring system  
+- Deadlock detection  
+- Strategy selector for CPU  
+
+---
+
+## 📁 Project Structure
+
+```
+src/game/
+├── CellSorter.java
+├── GameCore.java
+├── PuzzleGenerator.java
+├── StrategyCompletion.java
+├── StrategyLives.java
+├── StrategyMRV.java
+├── StrategyScore.java
+├── StrategyDP.java
+├── StrategyDivideConquer.java
+├── TowersssGameGUI.java
+└── README.md
+```
+
+---
+
+## ▶️ How to Run
 
 ### Requirements
-- Java Development Kit (JDK) 8 or higher
-- Standard Swing library (included in JDK)
+- JDK 8 or higher  
+- Swing (included in JDK)
 
-### Execution
+### Compile
 ```bash
-# Compile
 javac game/*.java
+```
 
-# Run
+### Run
+```bash
 java game.TowersssGameGUI
 ```
 
-## Project Structure
-```
-src/game/
-├── CellSorter.java              # Shared intelligent sorting with center-preference tie-breaking
-├── GameCore.java                # Core game logic and state management
-├── PuzzleGenerator.java         # Generates valid Skyscraper puzzles with consistent clues
-├── StrategyCompletion.java      # Completion-Greedy (Rusher): Prioritizes nearly complete rows/columns
-├── StrategyLives.java           # Survival-Greedy: Focuses on maximizing legal options to preserve lives
-├── StrategyMRV.java             # Constraint-Greedy (MRV): Minimum Remaining Values heuristic
-├── StrategyScore.java           # Score-Greedy (Gambler): Maximizes immediate points from completions
-├── TowersssGameGUI.java         # Main GUI with modern design, heat map, CPU reasoning, and strategy selector
-└── README.md                    # Project documentation (this file)
-```
+---
 
-## Game Mechanics
-- **Scoring:** +10 per correct move, +20 for completing rows/columns
-- **Lives System:** Start with 100 lives, lose 5 per invalid move
-- **Victory:** Complete board first, eliminate opponent, or achieve higher score
-- **Turn-based:** Human vs. CPU with selectable strategies
+## 📊 Algorithm Comparison
 
-## Educational Significance
-This project demonstrates:
-1. **Greedy algorithm design** with multiple optimization criteria
-2. **Heuristic evaluation** in constrained environments
-3. **Trade-offs** between different greedy approaches (optimal vs. practical)
-4. **Algorithm visualization** for understanding decision-making processes
-
-## Algorithm Analysis
-| Strategy | Time Complexity | Space Complexity | Optimality |
-|----------|----------------|------------------|------------|
-| Lives    | O(N³)          | O(N²)            | Local      |
-| Completion | O(N^4)        | O(N²)            | Local      |
-| Score    | O(N^5)          | O(N²)            | Local      |
-| MRV      | O(N³)          | O(N²)            | Local      |
-
-*Note: Greedy algorithms provide locally optimal choices but don't guarantee global optimality.*
-
-## Conclusion
-This implementation effectively illustrates how greedy algorithms can be applied to game AI, demonstrating that different greedy criteria lead to distinct behaviors and outcomes. The visual interface makes the abstract algorithmic concepts tangible and observable in real-time.
+| Strategy              | Time Complexity     | Space Complexity | Optimality |
+|----------------------|--------------------|------------------|------------|
+| Lives-Greedy         | O(N³)              | O(N²)            | Local      |
+| Completion-Greedy    | O(N⁴)              | O(N²)            | Local      |
+| Score-Greedy         | O(N⁵)              | O(N²)            | Local      |
+| MRV-Greedy           | O(N³)              | O(N²)            | Local      |
+| Divide & Conquer     | O(N!)              | O(N²)            | Global     |
+| Dynamic Programming  | O(N² · 2^N)        | O(N · 2^N)       | Global     |
 
 ---
+
+## 🎓 Educational Significance
+
+This project demonstrates:
+
+- Greedy vs Optimal strategies  
+- Heuristic vs Exhaustive search  
+- Memoization in constraint problems  
+- Recursive problem decomposition  
+- Trade-offs between speed and correctness  
+- Visualization of algorithmic reasoning  
+
+---
+
+## 🏁 Conclusion
+
+This project evolved from a Greedy-based AI into a complete comparative study of:
+
+- Greedy Algorithms  
+- Dynamic Programming  
+- Divide and Conquer  
+
+It highlights the trade-offs between:
+
+- Speed vs Completeness  
+- Local vs Global Optimization  
+- Heuristics vs Exact Methods  
+
+The interactive GUI makes abstract algorithmic concepts tangible and observable in real-time.
+
+---
+
 **Course:** Design and Analysis of Algorithms (23CSE211)  
-**Focus:** Greedy Algorithms & Heuristic Problem Solving
+**Focus:** Greedy Algorithms, Dynamic Programming & Divide and Conquer  
