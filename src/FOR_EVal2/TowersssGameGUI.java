@@ -373,8 +373,8 @@ public class TowersssGameGUI extends JFrame {
 
         humanScoreLabel = createScoreLabel("YOU  •  Score: 0",  new Color(56, 189, 248));
         cpuScoreLabel   = createScoreLabel("CPU  •  Score: 0",  new Color(167, 139, 250));
-        humanLivesLabel = createScoreLabel("❤  Lives: 100",    new Color(52, 211, 153));
-        cpuLivesLabel   = createScoreLabel("❤  Lives: 100",    new Color(251, 113, 133));
+        humanLivesLabel = createScoreLabel("Lives: 100",    new Color(52, 211, 153));
+        cpuLivesLabel   = createScoreLabel("Lives: 100",    new Color(251, 113, 133));
 
         topPanel.add(humanScoreLabel);
         topPanel.add(cpuScoreLabel);
@@ -485,13 +485,13 @@ public class TowersssGameGUI extends JFrame {
         heatMapToggle.addActionListener(e -> { showHeatMap = heatMapToggle.isSelected(); updateDisplay(); });
 
         // back-to-menu button
-        JButton backBtn = buildFancyBtn("◀  Change Algorithm", new Color(80, 100, 200));
+        JButton backBtn = buildFancyBtn("Change Algorithm", new Color(80, 100, 200));
         backBtn.setAlignmentX(CENTER_ALIGNMENT);
         backBtn.setMaximumSize(new Dimension(290, 46));
         backBtn.addActionListener(e -> cardLayout.show(rootPanel, "SPLASH"));
 
         // new game button
-        JButton resetBtn = buildFancyBtn("⟳  New Game", new Color(22, 160, 120));
+        JButton resetBtn = buildFancyBtn("New Game", new Color(22, 160, 120));
         resetBtn.setAlignmentX(CENTER_ALIGNMENT);
         resetBtn.setMaximumSize(new Dimension(290, 46));
         resetBtn.addActionListener(e -> resetGame());
@@ -501,7 +501,7 @@ public class TowersssGameGUI extends JFrame {
         reasonCard.setLayout(new BoxLayout(reasonCard, BoxLayout.Y_AXIS));
         reasonCard.setAlignmentX(CENTER_ALIGNMENT);
 
-        JLabel reasonTitle = new JLabel("💭  CPU REASONING");
+        JLabel reasonTitle = new JLabel("CPU REASONING");
         reasonTitle.setFont(new Font("Courier New", Font.BOLD, 12));
         reasonTitle.setForeground(new Color(120, 155, 220));
         reasonTitle.setAlignmentX(CENTER_ALIGNMENT);
