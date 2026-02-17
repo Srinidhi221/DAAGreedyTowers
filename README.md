@@ -87,7 +87,7 @@ src/game/
 ├── StrategyMRV.java
 ├── StrategyScore.java
 ├── StrategyDP.java
-├── StrategyDivideConquer.java
+├── StrategyDnC.java
 └── TowersssGameGUI.java
 ```
 
