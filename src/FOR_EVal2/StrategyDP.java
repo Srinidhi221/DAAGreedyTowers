@@ -79,9 +79,6 @@ public class StrategyDP {
         return new int[]{ best.row, best.col, best.value };
     }
 
-    /**
-     * Heat-map score for a single cell (max DP value across legal values).
-     */
     public double evaluateCell(int row, int col) {
         if (state.getGrid()[row][col] != 0) return 0.0;
         double max = 0;
@@ -137,9 +134,7 @@ public class StrategyDP {
         return best;
     }
 
-    // ════════════════════════════════════════════════════════════════════════
     //  REWARD FUNCTION  (shared by immediate + future scoring)
-    // ════════════════════════════════════════════════════════════════════════
 
     private double immediateReward(int[][] grid, int row, int col, int value) {
         double score = BASE_REWARD;
@@ -295,3 +290,4 @@ public class StrategyDP {
         double total() { return total; }
     }
 }
+
