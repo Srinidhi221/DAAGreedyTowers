@@ -38,7 +38,7 @@ Time: O(N² · 2^N) | Space: O(N · 2^N) | Optimality: Global
 ### Divide and Conquer
 
 Solves the puzzle by recursively dividing into smaller subproblems. Solves one row at a time, recursively solves remaining rows, then validates column constraints and visibility clues.  
-Time: O(N!) | Space: O(N²) | Optimality: Global
+Time: O(N²) | Space: O(N²) | Optimality: Global
 
 ## Algorithm Comparison
 
@@ -49,7 +49,7 @@ Time: O(N!) | Space: O(N²) | Optimality: Global
 | Score-Greedy | O(N⁵) | O(N²) | Local |
 | MRV-Greedy | O(N³) | O(N²) | Local |
 | Dynamic Programming | O(N² · 2^N) | O(N · 2^N) | Global |
-| Divide & Conquer | O(N!) | O(N²) | Global |
+| Divide & Conquer | O(N²) | O(N²) | Global |
 
 Greedy strategies offer fast performance but may miss optimal solutions. Dynamic programming balances speed and correctness through memoization. Divide and conquer guarantees correctness through exhaustive search.
 
