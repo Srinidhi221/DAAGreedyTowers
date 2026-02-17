@@ -38,6 +38,48 @@ public class StrategyDP {
         this.SIZE  = state.getSize();
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    //  PUBLIC API
+    // ════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Find the globally best (row, col, value) triple using DP look-ahead.
+     * Returns int[]{row, col, value} or null if no legal move exists.
+     */
+    public int[] findBestMove() {
+        memo.clear();   // fresh memo each CPU turn
+
+        List<MoveEval> candidates = new ArrayList<>();
+
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                if (state.getGrid()[r][c] != 0) continue;
+                for (int v = 1; v <= SIZE; v++) {
+                    if (state.getGraph().hasConflict(state.getGrid(), r, c, v)) continue;
+
+                    int[][] after = deepCopy(state.getGrid());
+                    after[r][c] = v;
+
+                    double immediateScore = immediateReward(after, r, c, v);
+                    double futureScore    = dpValue(after, gridKey(after), 1);
+                    double total          = immediateScore + futureScore;
+
+                    candidates.add(new MoveEval(r, c, v, immediateScore, futureScore, total));
+                }
+            }
+        }
+
+        if (candidates.isEmpty()) return null;
+
+        // sort: highest total first; tie-break by fewer legal options (forcing)
+        candidates.sort(Comparator
+                .comparingDouble(MoveEval::total).reversed()
+                .thenComparingInt(m -> legalCount(m.row, m.col)));
+
+        MoveEval best = candidates.get(0);
+        state.setCpuReasoningExplanation(buildExplanation(best, candidates));
+        return new int[]{ best.row, best.col, best.value };
+    }
 
 
 
@@ -156,3 +198,4 @@ public class StrategyDP {
 
 
 }
+
