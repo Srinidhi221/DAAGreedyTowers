@@ -13,6 +13,43 @@ public class StrategyBacktracking {
         this.SIZE = state.getSize();
     }
 
+
+       public int[] findBestMove() {
+        nodesExplored = 0; pruned = 0;
+        int[][] grid = deepCopy(state.getGrid());
+        int[] best = {-1,-1,-1};
+        double[] bestScore = {Double.NEGATIVE_INFINITY};
+
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                if (grid[r][c] != 0) continue;
+                for (int v = 1; v <= SIZE; v++) {
+                    if (state.getGraph().hasConflict(grid, r, c, v)) { pruned++; continue; }
+                    grid[r][c] = v; nodesExplored++;
+                    double score = immediateReward(grid, r, c) + backtrack(grid, 1);
+                    if (score > bestScore[0]) { bestScore[0]=score; best[0]=r; best[1]=c; best[2]=v; }
+                    grid[r][c] = 0;
+                }
+            }
+        }
+        if (best[0] == -1) return null;
+        state.setCpuReasoningExplanation(buildExplanation(best, bestScore[0]));
+        return best;
+    }
+
+    public double evaluateCell(int row, int col) {
+        if (state.getGrid()[row][col] != 0) return 0.0;
+        double max = 0;
+        int[][] grid = deepCopy(state.getGrid());
+        for (int v = 1; v <= SIZE; v++) {
+            if (state.getGraph().hasConflict(grid, row, col, v)) continue;
+            grid[row][col] = v;
+            max = Math.max(max, immediateReward(grid, row, col));
+            grid[row][col] = 0;
+        }
+        return max;
+    }
+
     private double backtrack(int[][] grid, int depth) {
         if (depth >= 3) return 0;
         double best = 0;
