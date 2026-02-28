@@ -12,11 +12,23 @@ public class StrategyBacktracking {
         this.state = state;
         this.SIZE = state.getSize();
     }
-    
-    // ===============================
-    // HEURISTIC / SCORING FUNCTIONS
-    // ===============================
 
+    private double backtrack(int[][] grid, int depth) {
+        if (depth >= 3) return 0;
+        double best = 0;
+        for (int r = 0; r < SIZE; r++) for (int c = 0; c < SIZE; c++) {
+            if (grid[r][c] != 0) continue;
+            for (int v = 1; v <= SIZE; v++) {
+                if (state.getGraph().hasConflict(grid, r, c, v)) { pruned++; continue; }
+                grid[r][c] = v; nodesExplored++;
+                best = Math.max(best, immediateReward(grid,r,c) + 0.5*backtrack(grid, depth+1));
+                grid[r][c] = 0;
+            }
+        }
+        return best;
+    }
+    
+    // HEURISTIC / SCORING FUNCTIONS
     private double immediateReward(int[][] grid, int row, int col) {
         double score = 1.0;
 
