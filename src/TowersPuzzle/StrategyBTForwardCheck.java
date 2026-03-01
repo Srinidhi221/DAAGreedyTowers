@@ -37,21 +37,38 @@ public class StrategyBTForwardCheck {
         return max;
     }
 
-    // private double backtrack(int[][] grid, int depth) {
-    //     if (depth >= 3) return 0;
-    //     double best = 0;
-    //     for (int r = 0; r < SIZE; r++) for (int c = 0; c < SIZE; c++) {
-    //         if (grid[r][c] != 0) continue;
-    //         for (int v = 1; v <= SIZE; v++) {
-    //             if (state.getGraph().hasConflict(grid, r, c, v)) { pruned++; continue; }
-    //             grid[r][c] = v; nodesExplored++;
-    //             best = Math.max(best, immediateReward(grid,r,c) + 0.5*backtrack(grid, depth+1));
-    //             grid[r][c] = 0;
-    //         }
-    //     }
-    //     return best;
-    // }
-    
+    private boolean[][][] initDomains(int[][] grid) {
+        boolean[][][] domains = new boolean[SIZE][SIZE][SIZE + 1];
+        
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                if (grid[r][c] == 0) {
+                    for (int v = 1; v <= SIZE; v++) {
+                        // Populate initial domain based on current board conflicts
+                        domains[r][c][v] = !state.getGraph().hasConflict(grid, r, c, v);
+                    }
+                }
+            }
+        }
+        return domains;
+    }
+
+    private boolean[][][] copyDomains(boolean[][][] src) {
+        boolean[][][] dest = new boolean[SIZE][SIZE][SIZE + 1];
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                System.arraycopy(src[i][j], 0, dest[i][j], 0, SIZE + 1);
+            }
+        }
+        return dest;
+    }
+
+    private boolean isDomainEmpty(boolean[][][] domains, int r, int c) {
+        for (int v = 1; v <= SIZE; v++) {
+            if (domains[r][c][v]) return false;
+        }
+        return true; 
+    }
     // HEURISTIC / SCORING FUNCTIONS
     private double immediateReward(int[][] grid, int row, int col) {
         double score = 1.0;
