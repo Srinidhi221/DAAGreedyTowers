@@ -80,6 +80,20 @@ public class StrategyBTTrapSetter {
         valueCandidates.sort(CellSorter.getLcvComparator());
         return valueCandidates;
     }
+    // Helper for LCV: Counts how many total legal placements remain on the board immediately after a move
+    private int countImmediateFutureOptions(int[][] grid) {
+        int count = 0;
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                if (grid[r][c] == 0) {
+                    for (int v = 1; v <= SIZE; v++) {
+                        if (!state.getGraph().hasConflict(grid, r, c, v)) count++;
+                    }
+                }
+            }
+        }
+        return count;
+    }
 
     // VISIBILITY VALIDATORS & UTILS (Shared Architecture)
 
