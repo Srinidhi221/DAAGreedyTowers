@@ -20,6 +20,10 @@ public class StrategyBTForwardCheck {
         int[] best = {-1,-1,-1};
         double[] bestScore = {Double.NEGATIVE_INFINITY};
 
+        // initialized the starting domains for the current board
+         boolean[][][] startDomains = initDomains(grid);
+           
+
         
         return best;
     }
