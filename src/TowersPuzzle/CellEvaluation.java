@@ -5,6 +5,10 @@ public class CellEvaluation {
     public String explanation;
     public final int value;
 
+    // Explicit Heuristic Fields
+    public int mrvCount; 
+    public int lcvScore;
+
     public CellEvaluation(int row, int col, double score, String explanation, int value) {
         this.row = row;
         this.col = col;

@@ -282,6 +282,6 @@ public int[] findBestMove() {
 
         double score() { return score; }
     }
-
+}
 
 
