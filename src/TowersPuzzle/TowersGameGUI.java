@@ -44,7 +44,7 @@ public class TowersGameGUI extends JFrame {
     private GameState        gameState;
     private StrategyDP       stratDP;
     private StrategyDnC      stratDnC;
-    private StrategyBacktracking stratBT;
+    private StrategyBTForwardCheck stratBT;
     private StrategyBranchBound  stratBB;
 
     // ── Selection ────────────────────────────────────────────────────────────
@@ -557,7 +557,7 @@ public class TowersGameGUI extends JFrame {
         gameState = new GameState(pd.topClues, pd.rightClues, pd.bottomClues, pd.leftClues);
         stratDP  = new StrategyDP(gameState);
         stratDnC = new StrategyDnC(gameState);
-        stratBT  = new StrategyBacktracking(gameState);
+        stratBT  = new StrategyBTForwardCheck(gameState);
         stratBB  = new StrategyBranchBound(gameState);
         refreshAlgoBadge();
     }

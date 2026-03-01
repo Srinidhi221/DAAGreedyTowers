@@ -1,5 +1,5 @@
 
-public class StrategyBacktracking {
+public class StrategyBTForwardCheck {
 
     private final GameState state;
     private final int SIZE;
@@ -8,9 +8,9 @@ public class StrategyBacktracking {
     private int nodesExplored = 0;
     private int pruned = 0;
 
-    public StrategyBacktracking(GameState state) {
+    public StrategyBTForwardCheck(GameState state) {
         this.state = state;
-        this.SIZE = state.getSize();
+        this.SIZE  = state.getSize();
     }
 
 
@@ -98,19 +98,23 @@ public class StrategyBacktracking {
     }
 
     private boolean rowVisOk(int[][] g, int row) {
-        return countVis(g[row], false) == state.getLeftClues()[row]
-                && countVis(g[row], true) == state.getRightClues()[row];
+        int left = state.getLeftClues()[row];
+        int right = state.getRightClues()[row];
+        if (left != 0 && countVis(g[row], false) != left) return false;
+        if (right != 0 && countVis(g[row], true) != right) return false;
+        return true;
     }
-
+    
     private boolean colVisOk(int[][] g, int col) {
-        int[] arr = new int[SIZE];
-        for (int r = 0; r < SIZE; r++)
-            arr[r] = g[r][col];
-
-        return countVis(arr, false) == state.getTopClues()[col]
-                && countVis(arr, true) == state.getBottomClues()[col];
+        int top = state.getTopClues()[col];
+        int bottom = state.getBottomClues()[col];
+        int[] arr = new int[SIZE]; 
+        for(int r = 0; r < SIZE; r++) arr[r] = g[r][col];
+        if (top != 0 && countVis(arr, false) != top) return false;
+        if (bottom != 0 && countVis(arr, true) != bottom) return false;
+        return true;
     }
-
+    
     private int countVis(int[] line, boolean rev) {
         int vis = 0, maxH = 0;
 
