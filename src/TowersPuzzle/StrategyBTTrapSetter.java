@@ -58,6 +58,28 @@ public class StrategyBTTrapSetter {
         emptyCells.sort(CellSorter.getMrvComparator(SIZE));
         return emptyCells.get(0); 
     }
+    
+    // Least Constraining Value (LCV) - Ranks the numbers 1 through SIZE
+    private List<CellEvaluation> getSortedValuesLCV(int[][] grid, int r, int c) {
+        List<CellEvaluation> valueCandidates = new ArrayList<>();
+        
+        for (int v = 1; v <= SIZE; v++) {
+            if (state.getGraph().hasConflict(grid, r, c, v)) {
+                pruned++;
+                continue;
+            }
+            
+            // Simulate the move to calculate its LCV score
+            grid[r][c] = v;
+            int futureOptions = countImmediateFutureOptions(grid);
+            grid[r][c] = 0; // Undo
+            
+            valueCandidates.add(new CellEvaluation(r, c, v, 0, futureOptions, ""));
+        }
+        
+        valueCandidates.sort(CellSorter.getLcvComparator());
+        return valueCandidates;
+    }
 
     // VISIBILITY VALIDATORS & UTILS (Shared Architecture)
 
