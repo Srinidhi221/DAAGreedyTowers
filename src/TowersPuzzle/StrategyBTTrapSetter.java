@@ -25,6 +25,39 @@ public class StrategyBTTrapSetter {
         return null;
 
     }
+    // =========================================================================
+    // PERSON 4: THE HEURISTIC OPTIMIZERS (MRV & LCV)
+    // =========================================================================
+    
+    // Minimum Remaining Values (MRV) - Finds the most constrained cell
+    private CellEvaluation getBestCellMRV(int[][] grid) {
+        // 
+        List<CellEvaluation> emptyCells = new ArrayList<>();
+        
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                if (grid[r][c] == 0) {
+                    int validOptions = 0;
+                    for (int v = 1; v <= SIZE; v++) {
+                        if (!state.getGraph().hasConflict(grid, r, c, v)) {
+                            validOptions++;
+                        }
+                    }
+                    
+                    // If a cell has 0 options, the board is dead. Return it immediately to force a prune.
+                    if (validOptions == 0) return new CellEvaluation(r, c, -1, 0, 0, "");
+                    
+                    emptyCells.add(new CellEvaluation(r, c, -1, validOptions, 0, ""));
+                }
+            }
+        }
+        
+        if (emptyCells.isEmpty()) return null; // Board is full
+        
+        // Sort using the custom Comparator Person 4 built in CellSorter
+        emptyCells.sort(CellSorter.getMrvComparator(SIZE));
+        return emptyCells.get(0); 
+    }
 
     // VISIBILITY VALIDATORS & UTILS (Shared Architecture)
 
