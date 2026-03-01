@@ -68,32 +68,14 @@ public class StrategyBTForwardCheck {
     // HEURISTIC / SCORING FUNCTIONS
     private double immediateReward(int[][] grid, int row, int col) {
         double score = 1.0;
-
-        boolean rd = isRowComplete(grid, row);
-        boolean cd = isColComplete(grid, col);
-
-        if (rd) {
-            score += 12.0;
-            if (rowVisOk(grid, row))
-                score += 18.0;
+        boolean rowDone = true, colDone = true;
+        for (int i = 0; i < SIZE; i++) {
+            if (grid[row][i] == 0) rowDone = false;
+            if (grid[i][col] == 0) colDone = false;
         }
-
-        if (cd) {
-            score += 12.0;
-            if (colVisOk(grid, col))
-                score += 18.0;
-        }
-
-        if (rd && cd)
-            score += 28.0;
-
-        int opts = legalCount(grid, row, col);
-
-        if (opts <= 1)
-            score -= 12.0;
-        else if (opts <= 2)
-            score -= 5.0;
-
+        if (rowDone) score += 10.0;
+        if (colDone) score += 10.0;
+        if (rowDone && colDone) score += 5.0;
         return score;
     }
 
