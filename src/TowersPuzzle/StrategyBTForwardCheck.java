@@ -71,6 +71,29 @@ public class StrategyBTForwardCheck {
         return dest;
     }
 
+    // Updates the domain matrix. Returns FALSE if any empty cell drops to 0 legal options.
+    private boolean applyForwardChecking(int[][] grid, boolean[][][] domains, int row, int col, int val) {
+        //1. Clear the domain for the cell we just filled
+        for (int v = 1; v <= SIZE; v++) {
+            domains[row][col][v] = false;
+        }
+
+        //2. Remove 'val' from the domains of all other empty cells in this row and column
+        for (int i = 0; i < SIZE; i++) {
+            //Check Row
+            if (grid[row][i] == 0 && domains[row][i][val]) {
+                domains[row][i][val] = false;
+                if (isDomainEmpty(domains, row, i)) return false; // Domain wipeout! Prune instantly.
+            }
+            //Check Col
+            if (grid[i][col] == 0 && domains[i][col][val]) {
+                domains[i][col][val] = false;
+                if (isDomainEmpty(domains, i, col)) return false; // Domain wipeout! Prune instantly.
+            }
+        }
+        return true; 
+    }
+
     private boolean isDomainEmpty(boolean[][][] domains, int r, int c) {
         for (int v = 1; v <= SIZE; v++) {
             if (domains[r][c][v]) return false;
