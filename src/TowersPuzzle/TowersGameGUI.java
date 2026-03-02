@@ -11,14 +11,14 @@ import java.util.Random;
 import java.util.Comparator;
 
 //  TOWERS PUZZLE  ·  Complete UI  ·  4 Strategies  ·  Live Heat-Map
-public class TowersGameGUI extends JFrame {
+    public class TowersGameGUI extends JFrame {
 
     // ── Constants 
     private static final int N = 4;
 
 // Add to your existing fields near the top
-private JPanel vizCards;
-private CardLayout vizCardLayout;
+    private JPanel vizCards;
+    private CardLayout vizCardLayout;
 
 
     // ── Palette ──────────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ private CardLayout vizCardLayout;
         String[] codes = {"01","02"};
         String[] descs = {
             "DFS with Forward Checking for rapid domain reduction.",
-    "Exhaustive search optimized by MRV and LCV heuristics."
+            "Exhaustive search optimized by MRV and LCV heuristics."
         };
         String[] pill1 = {"Memory-heavy","Fast","Memory-light","Heuristic"};
         String[] pill2 = {"Optimal","Recursive","Domain Reduction","Adversarial"};
@@ -196,7 +196,7 @@ private CardLayout vizCardLayout;
 
     //  GAME BOARD PANEL
 
-     private JPanel buildVizLabPanel() {
+    private JPanel buildVizLabPanel() {
     JPanel lab = new JPanel(new BorderLayout(0, 15));
     lab.setOpaque(false);
     lab.setPreferredSize(new Dimension(400, 0));
