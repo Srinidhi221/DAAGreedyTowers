@@ -81,16 +81,13 @@ public class StrategyBTForwardCheck {
         }
 
         // --- EXECUTE BEST AVAILABLE TIER ---
-
         if (bestSafeMove[0] != -1) {
-            state.setCpuReasoningExplanation(
-                    buildExplanation(bestSafeMove, bestSafeScore));
+            state.setCpuReasoningExplanation(buildExplanation(bestSafeMove, "Mathematically Perfect"));
             return bestSafeMove;
-        }
-
+        } 
+        
         if (bestFallbackMove[0] != -1) {
-            state.setCpuReasoningExplanation(
-                    buildExplanation(bestFallbackMove, bestFallbackScore));
+            state.setCpuReasoningExplanation(buildExplanation(bestFallbackMove, "Fallback: Local FC Safe"));
             return bestFallbackMove;
         }
 
