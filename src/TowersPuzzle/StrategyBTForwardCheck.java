@@ -13,6 +13,7 @@ public class StrategyBTForwardCheck {
     }
 
     public int[] findBestMove() {
+
         nodesExplored = 0;
         pruned = 0;
 
@@ -30,10 +31,12 @@ public class StrategyBTForwardCheck {
 
         for (int r = 0; r < SIZE; r++) {
             for (int c = 0; c < SIZE; c++) {
+
                 if (grid[r][c] != 0)
                     continue;
 
                 for (int v = 1; v <= SIZE; v++) {
+
                     if (state.getGraph().hasConflict(grid, r, c, v))
                         continue;
 
@@ -44,10 +47,12 @@ public class StrategyBTForwardCheck {
                     boolean[][][] nextDomains = copyDomains(startDomains);
                     boolean isImmediateMoveSafe =
                             applyForwardChecking(grid, nextDomains, r, c, v);
+
                     double score = immediateReward(grid, r, c);
 
                     // TIER 1: The move is 100% mathematically safe to the end of the game
                     if (isImmediateMoveSafe && isPathSafe(grid, nextDomains)) {
+
                         if (score > bestSafeScore) {
                             bestSafeScore = score;
                             bestSafeMove[0] = r;
@@ -57,7 +62,9 @@ public class StrategyBTForwardCheck {
                     }
                     // TIER 2 (RELAXATION): The full path is doomed, but this specific move is locally safe
                     else if (isImmediateMoveSafe) {
+
                         pruned++; // It failed full path safety, but we'll remember it as a fallback
+
                         if (score > bestFallbackScore) {
                             bestFallbackScore = score;
                             bestFallbackMove[0] = r;
@@ -74,6 +81,7 @@ public class StrategyBTForwardCheck {
         }
 
         // --- EXECUTE BEST AVAILABLE TIER ---
+
         if (bestSafeMove[0] != -1) {
             state.setCpuReasoningExplanation(
                     buildExplanation(bestSafeMove, bestSafeScore));
@@ -86,10 +94,32 @@ public class StrategyBTForwardCheck {
             return bestFallbackMove;
         }
 
+        // TIER 3 (DESPERATION): If even Forward Checking fails, just pick any basic legal move
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                if (grid[r][c] == 0) {
+                    for (int v = 1; v <= SIZE; v++) {
+                        if (!state.getGraph().hasConflict(grid, r, c, v)) {
+
+                            state.setCpuReasoningExplanation(
+                                    "【DESPERATION】\n" +
+                                    "Human move made the board\n" +
+                                    "unsolvable. 0 paths remain.\n" +
+                                    "Executing basic legal move."
+                            );
+
+                            return new int[]{ r, c, v };
+                        }
+                    }
+                }
+            }
+        }
+
         return null; // Board is 100% full or completely locked
     }
 
     public double evaluateCell(int row, int col) {
+
         if (state.getGrid()[row][col] != 0)
             return 0.0;
 
@@ -98,6 +128,7 @@ public class StrategyBTForwardCheck {
         boolean[][][] startDomains = initDomains(grid);
 
         for (int v = 1; v <= SIZE; v++) {
+
             if (state.getGraph().hasConflict(grid, row, col, v))
                 continue;
 
@@ -107,7 +138,8 @@ public class StrategyBTForwardCheck {
             if (applyForwardChecking(grid, nextDomains, row, col, v)
                     && isPathSafe(grid, nextDomains)) {
 
-                maxValidScore = Math.max(maxValidScore,
+                maxValidScore = Math.max(
+                        maxValidScore,
                         immediateReward(grid, row, col));
             }
 
@@ -118,10 +150,12 @@ public class StrategyBTForwardCheck {
     }
 
     private boolean[][][] initDomains(int[][] grid) {
+
         boolean[][][] domains = new boolean[SIZE][SIZE][SIZE + 1];
 
         for (int r = 0; r < SIZE; r++) {
             for (int c = 0; c < SIZE; c++) {
+
                 if (grid[r][c] == 0) {
                     for (int v = 1; v <= SIZE; v++) {
                         domains[r][c][v] =
@@ -130,10 +164,12 @@ public class StrategyBTForwardCheck {
                 }
             }
         }
+
         return domains;
     }
 
     private boolean[][][] copyDomains(boolean[][][] src) {
+
         boolean[][][] dest = new boolean[SIZE][SIZE][SIZE + 1];
 
         for (int i = 0; i < SIZE; i++) {
@@ -180,14 +216,17 @@ public class StrategyBTForwardCheck {
     }
 
     private boolean isDomainEmpty(boolean[][][] domains, int r, int c) {
+
         for (int v = 1; v <= SIZE; v++) {
             if (domains[r][c][v])
                 return false;
         }
+
         return true;
     }
 
     private double immediateReward(int[][] grid, int row, int col) {
+
         double score = 1.0;
         boolean rowDone = true;
         boolean colDone = true;
@@ -199,27 +238,27 @@ public class StrategyBTForwardCheck {
                 colDone = false;
         }
 
-        if (rowDone)
-            score += 10.0;
-        if (colDone)
-            score += 10.0;
-        if (rowDone && colDone)
-            score += 5.0;
+        if (rowDone) score += 10.0;
+        if (colDone) score += 10.0;
+        if (rowDone && colDone) score += 5.0;
 
         return score;
     }
 
     private boolean isPathSafe(int[][] grid, boolean[][][] domains) {
+
         for (int r = 0; r < SIZE; r++) {
             for (int c = 0; c < SIZE; c++) {
                 if (grid[r][c] == 0 && isDomainEmpty(domains, r, c))
                     return false;
             }
         }
+
         return true;
     }
 
     private int[][] deepCopy(int[][] src) {
+
         int[][] c = new int[SIZE][SIZE];
 
         for (int i = 0; i < SIZE; i++)
@@ -229,6 +268,7 @@ public class StrategyBTForwardCheck {
     }
 
     private String buildExplanation(int[] best, double score) {
+
         return String.format(
                 "【BACKTRACKING】\n" +
                 "════════════════════════════\n" +
