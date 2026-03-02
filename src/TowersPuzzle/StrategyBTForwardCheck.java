@@ -245,27 +245,88 @@ public class StrategyBTForwardCheck {
         return score;
     }
 
-    private boolean isPathSafe(int[][] grid, boolean[][][] domains) {
+        private boolean isPathSafe(int[][] grid, boolean[][][] domains) {
+    int emptyR = -1, emptyC = -1;
+    int minOptions = SIZE + 1;
 
-        for (int r = 0; r < SIZE; r++) {
-            for (int c = 0; c < SIZE; c++) {
-                if (grid[r][c] == 0 && isDomainEmpty(domains, r, c))
-                    return false;
+    for (int r = 0; r < SIZE; r++) {
+        for (int c = 0; c < SIZE; c++) {
+            if (grid[r][c] != 0) continue;
+            int count = 0;
+            for (int v = 1; v <= SIZE; v++) if (domains[r][c][v]) count++;
+            if (count < minOptions) {
+                minOptions = count; emptyR = r; emptyC = c;
             }
         }
+    }
 
+    if (emptyR == -1) return isFullBoardVisibilityValid(grid);
+
+    for (int v = 1; v <= SIZE; v++) {
+        if (!domains[emptyR][emptyC][v]) continue;
+
+    
+
+        grid[emptyR][emptyC] = v;
+        nodesExplored++;
+        
+        boolean[][][] nextDomains = copyDomains(domains);
+        if (applyForwardChecking(grid, nextDomains, emptyR, emptyC, v)) {
+            if (isPathSafe(grid, nextDomains)) {
+                
+                grid[emptyR][emptyC] = 0;
+                return true;
+            }
+        } else {
+            pruned++;
+        }
+
+        
+        grid[emptyR][emptyC] = 0;
+    }
+    return false;
+} 
+
+
+      private boolean isFullBoardVisibilityValid(int[][] grid) {
+        for (int i = 0; i < SIZE; i++) {
+            if (!rowVisOk(grid, i) || !colVisOk(grid, i)) return false;
+        }
         return true;
     }
 
-    private int[][] deepCopy(int[][] src) {
-
-        int[][] c = new int[SIZE][SIZE];
-
-        for (int i = 0; i < SIZE; i++)
-            c[i] = src[i].clone();
-
-        return c;
+    private boolean rowVisOk(int[][] g, int row) {
+        int left = state.getLeftClues()[row];
+        int right = state.getRightClues()[row];
+        if (left != 0 && countVis(g[row], false) != left) return false;
+        if (right != 0 && countVis(g[row], true) != right) return false;
+        return true;
     }
+    
+    private boolean colVisOk(int[][] g, int col) {
+        int top = state.getTopClues()[col];
+        int bottom = state.getBottomClues()[col];
+        int[] arr = new int[SIZE]; 
+        for(int r = 0; r < SIZE; r++) arr[r] = g[r][col];
+        if (top != 0 && countVis(arr, false) != top) return false;
+        if (bottom != 0 && countVis(arr, true) != bottom) return false;
+        return true;
+    }
+
+    private int countVis(int[] line, boolean rev) {
+        int vis = 0, maxH = 0;
+        for(int i = rev ? SIZE - 1 : 0; rev ? i >= 0 : i < SIZE; i += rev ? -1 : 1) {
+            if(line[i] > maxH) { maxH = line[i]; vis++; }
+        }
+        return vis;
+    }
+
+    private int[][] deepCopy(int[][] src){ 
+        int[][] c = new int[SIZE][SIZE]; 
+        for(int i = 0; i < SIZE; i++) c[i] = src[i].clone(); 
+        return c; 
+    }
+
 
     private String buildExplanation(int[] best, double score) {
 

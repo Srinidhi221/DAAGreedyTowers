@@ -10,13 +10,20 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Comparator;
 
-// ═══════════════════════════════════════════════════════════════════════════
 //  TOWERS PUZZLE  ·  Complete UI  ·  4 Strategies  ·  Live Heat-Map
-// ═══════════════════════════════════════════════════════════════════════════
 public class TowersGameGUI extends JFrame {
 
-    // ── Constants ────────────────────────────────────────────────────────────
+    // ── Constants 
     private static final int N = 4;
+
+// Add to your existing fields near the top
+private JPanel vizCards;
+private CardLayout vizCardLayout;
+private List<Integer> timeData = new ArrayList<>();
+private List<Integer> spaceData = new ArrayList<>();
+private String currentTraceLog = "";
+     
+    //private TracePanel backtrackVisualizer = new TracePanel();
 
     // ── Palette ──────────────────────────────────────────────────────────────
     private static final Color BG           = new Color(7,  9,  15);
@@ -32,20 +39,20 @@ public class TowersGameGUI extends JFrame {
     private static final Color[] ACCENT = {
         new Color( 56, 189, 248),   // DP   – sky blue
         new Color(167, 139, 250),   // D&C  – violet
-        new Color( 52, 211, 153),   // BT   – emerald
-        new Color(251, 146,  60),   // B&B  – amber
+        new Color( 52, 211, 153),   // FC   – emerald
+        new Color(251, 146,  60),   // TS  – amber
     };
 
     // ── Algo enum ────────────────────────────────────────────────────────────
-    public enum Algo { DP, DNC, BT, BB }
+    public enum Algo { DP, DNC, FC, TS }
     private Algo currentAlgo = Algo.DP;
 
     // ── Game objects ─────────────────────────────────────────────────────────
     private GameState        gameState;
     private StrategyDP       stratDP;
     private StrategyDnC      stratDnC;
-    private StrategyBTForwardCheck stratBT;
-    private StrategyBranchBound  stratBB;
+    private StrategyBTForwardCheck stratFC;
+    private StrategyBTTrapSetter   stratTS;
 
     // ── Selection ────────────────────────────────────────────────────────────
     private int selRow = -1, selCol = -1;
@@ -88,9 +95,7 @@ public class TowersGameGUI extends JFrame {
         setLocationRelativeTo(null);
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    //  MENU  (same aesthetic as the approved HTML design, now in Swing)
-    // ════════════════════════════════════════════════════════════════════════
+    //  MENU  
     private JPanel buildMenuPanel() {
         AnimatedBG bg = new AnimatedBG();
         bg.setLayout(new GridBagLayout());
@@ -100,10 +105,6 @@ public class TowersGameGUI extends JFrame {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setOpaque(false);
-
-        // ── eyebrow ──────────────────────────────────────────────────────────
-        JLabel eye = styledLabel("4  ×  4   DEDUCTION  PUZZLE", 11, GOLD, Font.PLAIN);
-        eye.setAlignmentX(CENTER_ALIGNMENT);
 
         // ── title ────────────────────────────────────────────────────────────
         JLabel title = new JLabel("TOWERS") {
@@ -138,17 +139,17 @@ public class TowersGameGUI extends JFrame {
         grid.setAlignmentX(CENTER_ALIGNMENT);
 
         String[] tags  = {"DP",  "D&C", "BT",  "B&B"};
-        String[] names = {"Dynamic Programming","Divide & Conquer","Backtracking","Branch & Bound"};
+        String[] names = {"Dynamic Programming","Divide & Conquer","Constraint Enforcer", "Trap-Setter"};
         String[] codes = {"01","02","03","04"};
         String[] descs = {
             "Memoises sub-problems to find globally optimal moves.",
             "Recursively splits the board into quadrants, merges best.",
-            "Depth-first search — prunes branches on constraint fail.",
-            "Best-first with cost bounding — skips provably bad branches."
+            "DFS with Forward Checking for rapid domain reduction.",
+    "Exhaustive search optimized by MRV and LCV heuristics."
         };
-        String[] pill1 = {"Memory-heavy","Fast","Exhaustive","Pruned search"};
-        String[] pill2 = {"Optimal","Recursive","Constraint-driven","Optimal"};
-        Algo[]   algos = {Algo.DP, Algo.DNC, Algo.BT, Algo.BB};
+        String[] pill1 = {"Memory-heavy","Fast","Memory-light","Heuristic"};
+        String[] pill2 = {"Optimal","Recursive","Domain Reduction","Adversarial"};
+        Algo[]   algos = {Algo.DP, Algo.DNC, Algo.FC, Algo.TS};
 
         AlgoCard[] cards = new AlgoCard[4];
         for (int i = 0; i < 4; i++) {
@@ -185,9 +186,6 @@ public class TowersGameGUI extends JFrame {
         startBtn.setMaximumSize(new Dimension(280, 54));
         startBtn.setAlignmentX(CENTER_ALIGNMENT);
         startBtn.addActionListener(e -> { initGame(); updateHeat(); updateDisplay(); cardLayout.show(rootPanel, "GAME"); });
-
-        card.add(Box.createVerticalStrut(8));
-        card.add(eye);
         card.add(Box.createVerticalStrut(6));
         card.add(title);
         card.add(Box.createVerticalStrut(6));
@@ -204,28 +202,106 @@ public class TowersGameGUI extends JFrame {
         return bg;
     }
 
-    // ════════════════════════════════════════════════════════════════════════
     //  GAME BOARD PANEL
-    // ════════════════════════════════════════════════════════════════════════
+
+     private JPanel buildVizLabPanel() {
+    JPanel lab = new JPanel(new BorderLayout(0, 15));
+    lab.setOpaque(false);
+    lab.setPreferredSize(new Dimension(400, 0));
+
+    // 1. Create the Toggle Buttons
+    JPanel header = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+    header.setOpaque(false);
+    
+    JButton btnComp = fancyBtn("Complexity Map", ACCENT[0]);
+    //JButton btnTrace = fancyBtn("Backtracking Trace", ACCENT[2]);
+    header.add(btnComp); 
+    //header.add(btnTrace);
+
+    // 2. Setup the CardLayout Container
+    vizCardLayout = new CardLayout();
+    vizCards = new JPanel(vizCardLayout);
+    vizCards.setOpaque(false);
+    vizCards.setBorder(new LineBorder(BORDER_DIM, 1, true));
+
+    // 3. Add the actual Visualization Panels as "Cards"
+    vizCards.add(new ComplexityGraphPanel(), "COMP");
+    //vizCards.add(backtrackVisualizer, "TRACE"); // Ensure this is your instance name
+
+    // 4. ADD THE ACTION LISTENERS HERE
+    btnComp.addActionListener(e -> {
+        vizCardLayout.show(vizCards, "COMP");
+        System.out.println("Switching to Complexity View");
+    });
+
+    
+
+    lab.add(header, BorderLayout.NORTH);
+    lab.add(vizCards, BorderLayout.CENTER);
+    return lab;
+}
+
     private JPanel buildGamePanel() {
-        JPanel root = new JPanel(new BorderLayout(0, 0));
-        root.setBackground(BG);
+    JPanel root = new JPanel(new BorderLayout(0, 0));
+    root.setBackground(BG);
+    root.add(buildTopBar(), BorderLayout.NORTH);
 
-        // ── top bar ───────────────────────────────────────────────────────────
-        root.add(buildTopBar(), BorderLayout.NORTH);
+    // Three-column layout: WEST (Board), CENTER (Viz Lab), EAST (Info/Controls)
+    JPanel centre = new JPanel(new BorderLayout(30, 0)); 
+    centre.setBackground(BG);
+    centre.setBorder(BorderFactory.createEmptyBorder(20, 30, 20, 30));
 
-        // ── centre: board + right panel ───────────────────────────────────────
-        JPanel centre = new JPanel(new BorderLayout(20, 0));
-        centre.setBackground(BG);
-        centre.setBorder(BorderFactory.createEmptyBorder(12, 24, 12, 24));
-        centre.add(buildBoardPanel(), BorderLayout.CENTER);
-        centre.add(buildRightPanel(), BorderLayout.EAST);
-        root.add(centre, BorderLayout.CENTER);
+    // Segment 1: The Board
+    centre.add(buildBoardPanel(), BorderLayout.WEST);
 
-        // ── status bar ────────────────────────────────────────────────────────
-        root.add(buildStatusBar(), BorderLayout.SOUTH);
-        return root;
+    // Segment 2: The Sliding Viz Lab (The center space)
+    centre.add(buildVizLabPanel(), BorderLayout.CENTER);
+
+    // Segment 3: Right Panel (Info/Controls)
+    centre.add(buildRightPanel(), BorderLayout.EAST);
+
+    root.add(centre, BorderLayout.CENTER);
+    root.add(buildStatusBar(), BorderLayout.SOUTH);
+    return root;
+}
+    class ComplexityGraphPanel extends JPanel {
+    ComplexityGraphPanel() { setOpaque(false); }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+        
+
+        int w = getWidth(), h = getHeight();
+        g2.setColor(SURFACE);
+        g2.fillRoundRect(5, 5, w-10, h-10, 15, 15);
+
+        // Draw Grid
+        g2.setColor(new Color(255, 255, 255, 15));
+        for(int i=0; i<w; i+=40) g2.drawLine(i, 0, i, h);
+        for(int i=0; i<h; i+=40) g2.drawLine(0, i, w, i);
+
+        
+
+        // Draw Backtracking Line O(n!) - Gold/Amber
+        g2.setColor(ACCENT[3]);
+        g2.setStroke(new BasicStroke(3f));
+        int[] xPoints = {40, 80, 120, 160, 200};
+        int[] yPoints = {h-40, h-60, h-120, h-250, 40};
+        g2.drawPolyline(xPoints, yPoints, 5);
+        g2.drawString("O(n!) Backtracking", 210, 50);
+
+        // Draw DP Line O(2^n) - Sky Blue
+        g2.setColor(ACCENT[0]);
+        g2.drawArc(40, 40, w*2, h*2, 90, 90);
+        g2.drawString("O(2^n) Dynamic Programming", 50, h-100);
+
+        g2.dispose();
     }
+}   
 
     // ── Top scoreboard ────────────────────────────────────────────────────────
     private JPanel buildTopBar() {
@@ -265,6 +341,7 @@ public class TowersGameGUI extends JFrame {
         return bar;
     }
 
+
     private JLabel scoreLabel(String t, Color c) {
         JLabel l = new JLabel(t);
         l.setFont(new Font("Monospaced", Font.BOLD, 22));
@@ -279,10 +356,10 @@ public class TowersGameGUI extends JFrame {
         GridBagConstraints gc = new GridBagConstraints();
         gc.insets = new Insets(5, 5, 5, 5);
 
-        int[] top    = {1,3,2,2};
-        int[] right  = {3,2,1,2};
-        int[] bottom = {3,1,2,2};
-        int[] left   = {1,3,2,2};
+int[] top    = {2, 1, 4, 3};
+int[] right  = {2, 3, 1, 2};
+int[] bottom = {3, 4, 1, 2};
+int[] left   = {1, 3, 2, 2};
 
         // top clues
         for (int i = 0; i < N; i++) {
@@ -323,7 +400,13 @@ public class TowersGameGUI extends JFrame {
                 // tower icon if value set
                 int val = gameState != null ? gameState.getGrid()[r][c] : 0;
                 if (val != 0) {
-                    drawTower(g2, val, getWidth(), getHeight(), getBackground());
+                    g2.setFont(new Font("Serif", Font.BOLD, 38));
+    g2.setColor(TEXT);
+    String s = String.valueOf(val);
+    FontMetrics fm = g2.getFontMetrics();
+    int x = (getWidth()  - fm.stringWidth(s)) / 2;
+    int y = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
+    g2.drawString(s, x, y);
                 }
                 g2.dispose();
             }
@@ -347,42 +430,6 @@ public class TowersGameGUI extends JFrame {
         return btn;
     }
 
-    /** Draw a stylised building silhouette for value v inside a cell. */
-    private void drawTower(Graphics2D g2, int val, int W, int H, Color bg) {
-        Color accent = accentColor();
-        float ratio  = val / (float) N;
-        int   floors = val;
-
-        // int bW  = W / 3;
-        // int bH  = (int)(H * 0.55 * ratio);
-        // int bX  = (W - bW) / 2;
-        // int bY  = H - bH - H/12;
-
-        // GradientPaint gp = new GradientPaint(bX, bY, accent.brighter(),
-        //                                      bX, bY+bH, accent.darker());
-        // g2.setPaint(gp);
-        // g2.fillRoundRect(bX, bY, bW, bH, 4, 4);
-
-        // g2.setColor(new Color(255,255,255,50));
-        // g2.setStroke(new BasicStroke(1));
-        // for (int f = 1; f < floors; f++) {
-        //     int fy = bY + (bH * f / floors);
-        //     g2.drawLine(bX+2, fy, bX+bW-2, fy);
-        // }
-
-        // g2.setColor(new Color(255,255,200,180));
-        // int winW = Math.max(3, bW/4), winH = Math.max(3, bH/(floors*2));
-        // for (int f = 0; f < floors; f++) {
-        //     int wy = bY + (bH * f / floors) + winH/2;
-        //     g2.fillRect(bX + bW/2 - winW/2, wy, winW, winH);
-        // }
-
-        g2.setFont(new Font("Serif", Font.BOLD, W/4));
-        g2.setColor(TEXT);
-        FontMetrics fm = g2.getFontMetrics();
-        String s = String.valueOf(val);
-        g2.drawString(s, (W - fm.stringWidth(s))/2, H/2 + fm.getAscent()/4);
-    }
 
     private JLabel clueLabel(int v, String arrow) {
         JLabel l = new JLabel(arrow + " " + v, SwingConstants.CENTER);
@@ -548,23 +595,34 @@ public class TowersGameGUI extends JFrame {
         return bar;
     }
 
+
     // ════════════════════════════════════════════════════════════════════════
     //  GAME LOGIC
-    // ════════════════════════════════════════════════════════════════════════
+
     private void initGame() {
-        PuzzleGenerator gen = new PuzzleGenerator();
-        PuzzleGenerator.PuzzleData pd = gen.generatePuzzle();
-        gameState = new GameState(pd.topClues, pd.rightClues, pd.bottomClues, pd.leftClues);
-        stratDP  = new StrategyDP(gameState);
-        stratDnC = new StrategyDnC(gameState);
-        stratBT  = new StrategyBTForwardCheck(gameState);
-        stratBB  = new StrategyBranchBound(gameState);
-        refreshAlgoBadge();
-    }
+    int[] top    = {2, 1, 4, 3};
+int[] right  = {2, 3, 1, 2};
+int[] bottom = {3, 4, 1, 2};
+int[] left   = {1, 3, 2, 2};
+    
+    gameState = new GameState(top, right, bottom, left);
+    
+    System.out.println("=== PUZZLE LOADED ===");
+    System.out.println("Top:    " + java.util.Arrays.toString(top));
+    System.out.println("Right:  " + java.util.Arrays.toString(right));
+    System.out.println("Bottom: " + java.util.Arrays.toString(bottom));
+    System.out.println("Left:   " + java.util.Arrays.toString(left));
+    
+    stratDP  = new StrategyDP(gameState);
+    stratDnC = new StrategyDnC(gameState);
+    stratFC  = new StrategyBTForwardCheck(gameState);
+    stratTS  = new StrategyBTTrapSetter(gameState);
+    refreshAlgoBadge();
+}
 
     private void refreshAlgoBadge() {
         int idx = currentAlgo.ordinal();
-        String[] names = {"Dynamic Programming","Divide & Conquer","Backtracking","Branch & Bound"};
+        String[] names = {"Dynamic Programming","Divide & Conquer","Constraint Enforcer", "Trap-Setter"};
         algoBadgeLbl.setText(names[idx]);
         algoBadgeLbl.setForeground(ACCENT[idx]);
     }
@@ -627,27 +685,45 @@ public class TowersGameGUI extends JFrame {
     }
 
     private void doCPUMove() {
+    new Thread(() -> {
+
+
+
+        // 2. Safety Check
         if (gameState.checkForDeadlock(false)) {
-            statusLbl.setText("CPU has no legal moves! Skipping.");
-            gameState.setHumanTurn(true);
-            updateDisplay();
+            SwingUtilities.invokeLater(() -> {
+                statusLbl.setText("CPU has no legal moves! Skipping.");
+                gameState.setHumanTurn(true);
+                updateDisplay();
+            });
             return;
         }
-        int[] move = switch (currentAlgo) {
-            case DP  -> stratDP .findBestMove();
-            case DNC -> stratDnC.findBestMove();
-            case BT  -> stratBT .findBestMove();
-            case BB  -> stratBB .findBestMove();
-        };
-        if (move == null) { gameState.setStatusMessage("CPU has no valid moves!"); updateDisplay(); return; }
-        reasonArea.setText(gameState.getCpuReasoningExplanation());
-        gameState.makeMove(move[0], move[1], move[2], false);
-        clearHeat();
-    }
 
-    // ════════════════════════════════════════════════════════════════════════
+        // 3. The Algorithm (This is where the visualization data is generated)
+        int[] move = switch (currentAlgo) {
+            case DP  -> stratDP.findBestMove();
+            case DNC -> stratDnC.findBestMove();
+            case FC  -> stratFC.findBestMove(); 
+            case TS  -> stratTS.findBestMove();
+        };
+
+        // 4. Update the Game Board on the UI thread
+        SwingUtilities.invokeLater(() -> {
+            if (move != null) {
+                if (gameState.getGrid()[move[0]][move[1]] == 0) {
+                    reasonArea.setText(gameState.getCpuReasoningExplanation());
+                    gameState.makeMove(move[0], move[1], move[2], false);
+                }
+            }
+            clearHeat();
+            gameState.setHumanTurn(true);
+            updateDisplay();
+            checkGameEnd();
+        });
+    }).start();
+}
+
     //  HEAT MAP
-    // ════════════════════════════════════════════════════════════════════════
     private void updateHeat() {
         double max = 0;
         for (int r = 0; r < N; r++) for (int c = 0; c < N; c++) {
@@ -655,8 +731,8 @@ public class TowersGameGUI extends JFrame {
                 heat[r][c] = switch (currentAlgo) {
                     case DP  -> stratDP .evaluateCell(r, c);
                     case DNC -> stratDnC.evaluateCell(r, c);
-                    case BT  -> stratBT .evaluateCell(r, c);
-                    case BB  -> stratBB .evaluateCell(r, c);
+                    case FC  -> stratFC.evaluateCell(r, c);
+                    case TS  -> stratTS.evaluateCell(r, c);
                 };
                 max = Math.max(max, heat[r][c]);
             } else heat[r][c] = 0;
@@ -697,7 +773,7 @@ public class TowersGameGUI extends JFrame {
         switch (currentAlgo) {
             case DP  -> { lo=new Color(10,30,80);    hi=new Color(56,189,248); }
             case DNC -> { lo=new Color(40,10,80);    hi=new Color(167,139,250); }
-            case BT  -> { lo=new Color(5,50,35);     hi=new Color(52,211,153); }
+            case FC  -> { lo=new Color(5,50,35);     hi=new Color(52,211,153); }
             default  -> { lo=new Color(80,30,5);     hi=new Color(251,146,60); }
         }
         return blend(lo, hi, Math.min(h,1.0));
@@ -719,9 +795,7 @@ public class TowersGameGUI extends JFrame {
         }
     }
 
-    // ════════════════════════════════════════════════════════════════════════
     //  DISPLAY UPDATE
-    // ════════════════════════════════════════════════════════════════════════
     private void updateDisplay() {
         int[][] grid = gameState.getGrid();
         for (int r=0;r<N;r++) for(int c=0;c<N;c++) {
@@ -753,9 +827,7 @@ public class TowersGameGUI extends JFrame {
         else statusLbl.setText("⟳  CPU thinking  [ " + currentAlgo + " ] …");
     }
 
-    // ════════════════════════════════════════════════════════════════════════
     //  GAME END & RESET
-    // ════════════════════════════════════════════════════════════════════════
     private boolean checkGameEnd() {
         if (!gameState.isGameOver()) return false;
         String w = gameState.getWinner();
@@ -778,9 +850,7 @@ public class TowersGameGUI extends JFrame {
         statusLbl.setText("✦ New game — your turn.");
     }
 
-    // ════════════════════════════════════════════════════════════════════════
     //  WIDGET HELPERS
-    // ════════════════════════════════════════════════════════════════════════
     private JLabel styledLabel(String text, int size, Color color, int style) {
         JLabel l = new JLabel(text);
         l.setFont(new Font("Monospaced", style, size));
@@ -842,9 +912,7 @@ public class TowersGameGUI extends JFrame {
         return p;
     }
 
-    // ════════════════════════════════════════════════════════════════════════
     //  ANIMATED BACKGROUND
-    // ════════════════════════════════════════════════════════════════════════
     static class AnimatedBG extends JPanel {
         private float t = 0;
         private final javax.swing.Timer anim;   // ── FIX: explicit javax.swing.Timer
@@ -904,9 +972,7 @@ public class TowersGameGUI extends JFrame {
         }
     }
 
-    // ════════════════════════════════════════════════════════════════════════
     //  ALGO CARD WIDGET
-    // ════════════════════════════════════════════════════════════════════════
     static class AlgoCard extends JPanel {
         private boolean selected = false;
         private final Color accent;
@@ -1036,9 +1102,7 @@ public class TowersGameGUI extends JFrame {
         }
     }
 
-    // ════════════════════════════════════════════════════════════════════════
     //  ENTRY POINT
-    // ════════════════════════════════════════════════════════════════════════
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new TowersGameGUI().setVisible(true));
     }
