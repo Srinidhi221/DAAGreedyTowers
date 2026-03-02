@@ -19,11 +19,7 @@ public class TowersGameGUI extends JFrame {
 // Add to your existing fields near the top
 private JPanel vizCards;
 private CardLayout vizCardLayout;
-private List<Integer> timeData = new ArrayList<>();
-private List<Integer> spaceData = new ArrayList<>();
-private String currentTraceLog = "";
-     
-    //private TracePanel backtrackVisualizer = new TracePanel();
+
 
     // ── Palette ──────────────────────────────────────────────────────────────
     private static final Color BG           = new Color(7,  9,  15);
@@ -44,13 +40,11 @@ private String currentTraceLog = "";
     };
 
     // ── Algo enum ────────────────────────────────────────────────────────────
-    public enum Algo { DP, DNC, FC, TS }
-    private Algo currentAlgo = Algo.DP;
+    public enum Algo { FC, TS }
+    private Algo currentAlgo = Algo.FC;
 
     // ── Game objects ─────────────────────────────────────────────────────────
     private GameState        gameState;
-    private StrategyDP       stratDP;
-    private StrategyDnC      stratDnC;
     private StrategyBTForwardCheck stratFC;
     private StrategyBTTrapSetter   stratTS;
 
@@ -138,21 +132,19 @@ private String currentTraceLog = "";
         grid.setMaximumSize(new Dimension(660, 360));
         grid.setAlignmentX(CENTER_ALIGNMENT);
 
-        String[] tags  = {"DP",  "D&C", "BT",  "B&B"};
-        String[] names = {"Dynamic Programming","Divide & Conquer","Constraint Enforcer", "Trap-Setter"};
-        String[] codes = {"01","02","03","04"};
+        String[] tags  = {"BT1",  "BT2"};
+        String[] names = {"Constraint Enforcer", "Trap-Setter"};
+        String[] codes = {"01","02"};
         String[] descs = {
-            "Memoises sub-problems to find globally optimal moves.",
-            "Recursively splits the board into quadrants, merges best.",
             "DFS with Forward Checking for rapid domain reduction.",
     "Exhaustive search optimized by MRV and LCV heuristics."
         };
         String[] pill1 = {"Memory-heavy","Fast","Memory-light","Heuristic"};
         String[] pill2 = {"Optimal","Recursive","Domain Reduction","Adversarial"};
-        Algo[]   algos = {Algo.DP, Algo.DNC, Algo.FC, Algo.TS};
+        Algo[]   algos = {Algo.FC, Algo.TS};
 
-        AlgoCard[] cards = new AlgoCard[4];
-        for (int i = 0; i < 4; i++) {
+        AlgoCard[] cards = new AlgoCard[2];
+        for (int i = 0; i < 2; i++) {
             final int idx = i;
             cards[i] = new AlgoCard(tags[i], codes[i], names[i], descs[i], pill1[i], pill2[i], ACCENT[i]);
             cards[i].addActionListener(e -> {
@@ -613,8 +605,6 @@ int[] left   = {1, 3, 2, 2};
     System.out.println("Bottom: " + java.util.Arrays.toString(bottom));
     System.out.println("Left:   " + java.util.Arrays.toString(left));
     
-    stratDP  = new StrategyDP(gameState);
-    stratDnC = new StrategyDnC(gameState);
     stratFC  = new StrategyBTForwardCheck(gameState);
     stratTS  = new StrategyBTTrapSetter(gameState);
     refreshAlgoBadge();
@@ -701,8 +691,6 @@ int[] left   = {1, 3, 2, 2};
 
         // 3. The Algorithm (This is where the visualization data is generated)
         int[] move = switch (currentAlgo) {
-            case DP  -> stratDP.findBestMove();
-            case DNC -> stratDnC.findBestMove();
             case FC  -> stratFC.findBestMove(); 
             case TS  -> stratTS.findBestMove();
         };
