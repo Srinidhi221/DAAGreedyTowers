@@ -327,24 +327,18 @@ public class StrategyBTForwardCheck {
         return c; 
     }
 
-
-    private String buildExplanation(int[] best, double score) {
-
+    private String buildExplanation(int[] best, String status) {
         return String.format(
-                "【BACKTRACKING】\n" +
-                "════════════════════════════\n" +
-                " Move : %d  at  (%d , %d)\n" +
-                " Branch score     : %.1f\n" +
-                "────────────────────────────\n" +
-                " Nodes explored   : %d\n" +
-                " Branches pruned  : %d\n" +
-                " Search depth     : 3 plies\n" +
-                "════════════════════════════\n" +
-                "STRATEGY: Depth-first search\n" +
-                "with constraint pruning —\n" +
-                "undoes bad moves instantly.",
-                best[2], best[0] + 1, best[1] + 1,
-                score, nodesExplored, pruned
-        );
+            "【CONSTRAINT ENFORCER】\n" +
+            " Move : %d  at  (%d , %d)\n" +
+            " Status: %s\n" +
+            "────────────────────────────\n" +
+            " Nodes Explored : %d\n" +
+            " Branches Pruned: %d\n" +
+            "════════════════════════════\n" +
+            "STRATEGY: DFS accelerated by\n" +
+            "Forward Checking. Relaxes to\n" +
+            "local safety if board is doomed.",
+            best[2], best[0] + 1, best[1] + 1, status, nodesExplored, pruned);
     }
 }
