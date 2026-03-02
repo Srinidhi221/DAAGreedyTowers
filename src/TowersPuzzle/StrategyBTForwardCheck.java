@@ -119,33 +119,19 @@ public class StrategyBTForwardCheck {
     }
 
     public double evaluateCell(int row, int col) {
-
-        if (state.getGrid()[row][col] != 0)
-            return 0.0;
-
-        double maxValidScore = 0;
+        if (state.getGrid()[row][col] != 0) return 0.0;
+        double maxValidScore = 0.0;
         int[][] grid = deepCopy(state.getGrid());
         boolean[][][] startDomains = initDomains(grid);
-
         for (int v = 1; v <= SIZE; v++) {
-
-            if (state.getGraph().hasConflict(grid, row, col, v))
-                continue;
-
+            if (state.getGraph().hasConflict(grid, row, col, v)) continue;
             grid[row][col] = v;
             boolean[][][] nextDomains = copyDomains(startDomains);
-
-            if (applyForwardChecking(grid, nextDomains, row, col, v)
-                    && isPathSafe(grid, nextDomains)) {
-
-                maxValidScore = Math.max(
-                        maxValidScore,
-                        immediateReward(grid, row, col));
+            if (applyForwardChecking(grid, nextDomains, row, col, v)) {
+                maxValidScore = Math.max(maxValidScore, immediateReward(grid, row, col));
             }
-
             grid[row][col] = 0;
         }
-
         return maxValidScore;
     }
 
