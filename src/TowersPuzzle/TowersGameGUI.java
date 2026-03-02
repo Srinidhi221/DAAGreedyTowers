@@ -84,7 +84,7 @@ private CardLayout vizCardLayout;
         cardLayout.show(rootPanel, "MENU");
 
         pack();
-        setMinimumSize(new Dimension(1180, 850));
+        setMinimumSize(new Dimension(1400, 900));
         setResizable(true);
         setLocationRelativeTo(null);
     }
@@ -113,7 +113,7 @@ private CardLayout vizCardLayout;
                 g2.dispose();
             }
         };
-        title.setFont(new Font("Serif", Font.BOLD, 72));
+        title.setFont(new Font("Serif", Font.BOLD, 96));
         title.setForeground(Color.WHITE);
         title.setAlignmentX(CENTER_ALIGNMENT);
 
@@ -129,7 +129,7 @@ private CardLayout vizCardLayout;
         // ── 2×2 algo card grid ────────────────────────────────────────────────
         JPanel grid = new JPanel(new GridLayout(2, 2, 12, 12));
         grid.setOpaque(false);
-        grid.setMaximumSize(new Dimension(660, 360));
+        grid.setMaximumSize(new Dimension(900, 520));
         grid.setAlignmentX(CENTER_ALIGNMENT);
 
         String[] tags  = {"BT1",  "BT2"};
@@ -717,8 +717,6 @@ int[] left   = {1, 3, 2, 2};
         for (int r = 0; r < N; r++) for (int c = 0; c < N; c++) {
             if (gameState.getGrid()[r][c] == 0) {
                 heat[r][c] = switch (currentAlgo) {
-                    case DP  -> stratDP .evaluateCell(r, c);
-                    case DNC -> stratDnC.evaluateCell(r, c);
                     case FC  -> stratFC.evaluateCell(r, c);
                     case TS  -> stratTS.evaluateCell(r, c);
                 };
@@ -759,8 +757,6 @@ int[] left   = {1, 3, 2, 2};
         if (h < 0.01) return SURFACE;
         Color lo, hi;
         switch (currentAlgo) {
-            case DP  -> { lo=new Color(10,30,80);    hi=new Color(56,189,248); }
-            case DNC -> { lo=new Color(40,10,80);    hi=new Color(167,139,250); }
             case FC  -> { lo=new Color(5,50,35);     hi=new Color(52,211,153); }
             default  -> { lo=new Color(80,30,5);     hi=new Color(251,146,60); }
         }
@@ -972,7 +968,7 @@ int[] left   = {1, 3, 2, 2};
             this.accent = accent;
             setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
             setOpaque(false);
-            setPreferredSize(new Dimension(300, 170));
+            setPreferredSize(new Dimension(310, 170));
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
             // ── FIX: explicit javax.swing.Timer (no double-brace init) ────────
@@ -987,7 +983,7 @@ int[] left   = {1, 3, 2, 2};
             iconBox.setPreferredSize(new Dimension(46, 46));
             iconBox.setBorder(new LineBorder(new Color(accent.getRed(),accent.getGreen(),accent.getBlue(),80), 1, true));
             JLabel iconLbl = new JLabel(tag, SwingConstants.CENTER);
-            iconLbl.setFont(new Font("Monospaced", Font.BOLD, 13));
+            iconLbl.setFont(new Font("Monospaced", Font.BOLD, 14));
             iconLbl.setForeground(accent);
             iconBox.add(iconLbl);
 
@@ -995,10 +991,10 @@ int[] left   = {1, 3, 2, 2};
             meta.setLayout(new BoxLayout(meta, BoxLayout.Y_AXIS));
             meta.setOpaque(false);
             JLabel codeLbl = new JLabel("Algorithm " + code);
-            codeLbl.setFont(new Font("Monospaced", Font.PLAIN, 9));
+            codeLbl.setFont(new Font("Monospaced", Font.BOLD, 14));
             codeLbl.setForeground(new Color(accent.getRed(),accent.getGreen(),accent.getBlue(),160));
             JLabel nameLbl = new JLabel(name);
-            nameLbl.setFont(new Font("Serif", Font.BOLD, 15));
+            nameLbl.setFont(new Font("Serif", Font.BOLD, 18));
             nameLbl.setForeground(Color.WHITE);
             meta.add(codeLbl);
             meta.add(Box.createVerticalStrut(2));
@@ -1023,7 +1019,7 @@ int[] left   = {1, 3, 2, 2};
 
             JTextArea descA = new JTextArea(desc);
             descA.setEditable(false); descA.setOpaque(false);
-            descA.setFont(new Font("Monospaced", Font.PLAIN, 11));
+            descA.setFont(new Font("Monospaced", Font.BOLD, 14));
             descA.setForeground(new Color(200, 215, 235));
             descA.setLineWrap(true); descA.setWrapStyleWord(true);
             descA.setMaximumSize(new Dimension(260, 50));
