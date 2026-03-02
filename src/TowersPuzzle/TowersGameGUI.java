@@ -449,7 +449,7 @@ int[] left   = {1, 3, 2, 2};
         badge.setLayout(new BoxLayout(badge, BoxLayout.Y_AXIS));
         JLabel tag = styledLabel("CPU  ALGORITHM", 9, MUTED, Font.PLAIN);
         tag.setAlignmentX(CENTER_ALIGNMENT);
-        algoBadgeLbl = styledLabel("Dynamic Programming", 18, ACCENT[0], Font.BOLD);
+        algoBadgeLbl = styledLabel("Constraint Enforcer", 18, ACCENT[0], Font.BOLD);
         algoBadgeLbl.setAlignmentX(CENTER_ALIGNMENT);
         badge.add(Box.createVerticalStrut(10));
         badge.add(tag);
@@ -612,7 +612,7 @@ int[] left   = {1, 3, 2, 2};
 
     private void refreshAlgoBadge() {
         int idx = currentAlgo.ordinal();
-        String[] names = {"Dynamic Programming","Divide & Conquer","Constraint Enforcer", "Trap-Setter"};
+        String[] names = {"Constraint Enforcer", "Trap-Setter"};
         algoBadgeLbl.setText(names[idx]);
         algoBadgeLbl.setForeground(ACCENT[idx]);
     }
