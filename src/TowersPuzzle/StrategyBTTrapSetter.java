@@ -20,9 +20,9 @@ public class StrategyBTTrapSetter {
         this.SIZE = state.getSize();
     }
 
-    // =========================================================================
-    // PERSON 3: THE ADVERSARIAL WRAPPER
-    // =========================================================================
+    
+    //THE ADVERSARIAL WRAPPER
+    
     public int[] findBestMove() {
         nodesExplored = 0;
         pruned = 0;
@@ -77,12 +77,12 @@ public class StrategyBTTrapSetter {
         return bestMove;
     }
 
-    // PERSON 3: THE CORE DFS COUNTER
+    //THE CORE DFS COUNTER
     private int countSolutions(int[][] grid, int currentCount) {
         if (currentCount >= SOLUTION_LIMIT)
             return currentCount;
 
-        // PERSON 4 INTEGRATION: Use MRV to find the most constrained cell
+        //Use MRV to find the most constrained cell
         CellEvaluation bestCell = getBestCellMRV(grid);
 
         // BASE CASE: No empty cells found! Board is full.
@@ -98,7 +98,7 @@ public class StrategyBTTrapSetter {
         if (bestCell.mrvCount == 0)
             return currentCount;
 
-        // PERSON 4 INTEGRATION: Use LCV to sort the numbers we try in this cell
+        // Use LCV to sort the numbers we try in this cell
         List<CellEvaluation> sortedValues = getSortedValuesLCV(grid, bestCell.row, bestCell.col);
 
         // RECURSIVE CASE: Try the sorted values
@@ -116,11 +116,11 @@ public class StrategyBTTrapSetter {
         return currentCount;
     }
 
-    // =========================================================================
-    // PERSON 4: THE HEURISTIC OPTIMIZERS (MRV & LCV)
-    // =========================================================================
+
+    //THE HEURISTIC OPTIMIZERS (MRV & LCV)
     
-    // Minimum Remaining Values (MRV) - Finds the most constrained cell
+    
+// Minimum Remaining Values (MRV) - Finds the most constrained cell
     private CellEvaluation getBestCellMRV(int[][] grid) {
         // 
         List<CellEvaluation> emptyCells = new ArrayList<>();
@@ -145,7 +145,7 @@ public class StrategyBTTrapSetter {
         
         if (emptyCells.isEmpty()) return null; // Board is full
         
-        // Sort using the custom Comparator Person 4 built in CellSorter
+        // Sort using the custom Comparator built in CellSorter
         emptyCells.sort(CellSorter.getMrvComparator(SIZE));
         return emptyCells.get(0); 
     }
@@ -259,3 +259,4 @@ public class StrategyBTTrapSetter {
     }
 
 }
+
