@@ -241,6 +241,29 @@ public class StrategyBTTrapSetter {
             c[i] = src[i].clone();
         return c;
     }
+    // UI Heat-map Support
+    public double evaluateCell(int row, int col) {
+        if (state.getGrid()[row][col] != 0)
+            return 0.0;
+
+        double bestTrapScore = 0.0;
+        int[][] grid = deepCopy(state.getGrid());
+
+        for (int v = 1; v <= SIZE; v++) {
+            if (state.getGraph().hasConflict(grid, row, col, v))
+                continue;
+
+            grid[row][col] = v;
+            int validFutures = countSolutions(grid, 0);
+
+            if (validFutures > 0) {
+                // Higher score = better trap (fewer futures for the human)
+                bestTrapScore = Math.max(bestTrapScore, 100.0 / validFutures);
+            }
+            grid[row][col] = 0;
+        }
+        return bestTrapScore;
+    }
 
     private String buildExplanation(int[] best, int minValidFutures) {
         String futures = minValidFutures >= SOLUTION_LIMIT ? SOLUTION_LIMIT + "+" : String.valueOf(minValidFutures);
@@ -259,4 +282,5 @@ public class StrategyBTTrapSetter {
     }
 
 }
+
 
