@@ -20,11 +20,102 @@ public class StrategyBTTrapSetter {
         this.SIZE = state.getSize();
     }
 
-    // THE ADVERSARIAL WRAPPER
+    // =========================================================================
+    // PERSON 3: THE ADVERSARIAL WRAPPER
+    // =========================================================================
     public int[] findBestMove() {
-        return null;
+        nodesExplored = 0;
+        pruned = 0;
 
+        int[][] grid = deepCopy(state.getGrid());
+        int[] bestMove = { -1, -1, -1 };
+        int[] fallbackMove = { -1, -1, -1 };
+        int minValidFutures = Integer.MAX_VALUE;
+
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                if (grid[r][c] != 0)
+                    continue;
+
+                for (int v = 1; v <= SIZE; v++) {
+                    if (state.getGraph().hasConflict(grid, r, c, v)) {
+                        pruned++;
+                        continue;
+                    }
+
+                    // Save first legal move as fallback
+                    if (fallbackMove[0] == -1) {
+                        fallbackMove = new int[] { r, c, v };
+                    }
+
+                    grid[r][c] = v;
+                    nodesExplored++;
+
+                    int validFutures = countSolutions(grid, 0);
+
+                    if (validFutures > 0 && validFutures < minValidFutures) {
+                        minValidFutures = validFutures;
+                        bestMove[0] = r;
+                        bestMove[1] = c;
+                        bestMove[2] = v;
+                    }
+
+                    grid[r][c] = 0;
+                }
+            }
+        }
+
+        // If no trapping move found, use fallback legal move
+        if (bestMove[0] == -1) {
+            if (fallbackMove[0] == -1)
+                return null;
+            bestMove = fallbackMove;
+            minValidFutures = 0;
+        }
+
+        state.setCpuReasoningExplanation(buildExplanation(bestMove, minValidFutures));
+        return bestMove;
     }
+
+    // PERSON 3: THE CORE DFS COUNTER
+    private int countSolutions(int[][] grid, int currentCount) {
+        if (currentCount >= SOLUTION_LIMIT)
+            return currentCount;
+
+        // PERSON 4 INTEGRATION: Use MRV to find the most constrained cell
+        CellEvaluation bestCell = getBestCellMRV(grid);
+
+        // BASE CASE: No empty cells found! Board is full.
+        if (bestCell == null) {
+            //
+            if (isFullBoardVisibilityValid(grid)) {
+                return currentCount + 1;
+            }
+            return currentCount;
+        }
+
+        // If MRV found a cell with 0 options, this branch is a dead end
+        if (bestCell.mrvCount == 0)
+            return currentCount;
+
+        // PERSON 4 INTEGRATION: Use LCV to sort the numbers we try in this cell
+        List<CellEvaluation> sortedValues = getSortedValuesLCV(grid, bestCell.row, bestCell.col);
+
+        // RECURSIVE CASE: Try the sorted values
+        for (CellEvaluation eval : sortedValues) {
+            int v = eval.value;
+
+            grid[bestCell.row][bestCell.col] = v;
+            nodesExplored++;
+
+            currentCount = countSolutions(grid, currentCount); // Recurse
+
+            grid[bestCell.row][bestCell.col] = 0; // Backtrack (Undo)
+        }
+
+        return currentCount;
+    }
+
     // =========================================================================
     // PERSON 4: THE HEURISTIC OPTIMIZERS (MRV & LCV)
     // =========================================================================
@@ -166,4 +257,5 @@ public class StrategyBTTrapSetter {
                         "the opponent efficiently.",
                 best[2], best[0] + 1, best[1] + 1, futures, nodesExplored, pruned);
     }
+
 }
