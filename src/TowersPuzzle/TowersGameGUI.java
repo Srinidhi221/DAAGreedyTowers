@@ -244,10 +244,10 @@ import java.util.Comparator;
     centre.setBorder(BorderFactory.createEmptyBorder(20, 30, 20, 30));
 
     // Segment 1: The Board
-    centre.add(buildBoardPanel(), BorderLayout.WEST);
+    centre.add(buildBoardPanel(), BorderLayout.CENTER);
 
     // Segment 2: The Sliding Viz Lab (The center space)
-    centre.add(buildVizLabPanel(), BorderLayout.CENTER);
+    //centre.add(buildVizLabPanel(), BorderLayout.CENTER);
 
     // Segment 3: Right Panel (Info/Controls)
     centre.add(buildRightPanel(), BorderLayout.EAST);
