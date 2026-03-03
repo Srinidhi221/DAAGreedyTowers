@@ -92,25 +92,85 @@ public class StrategyBTForwardCheck {
         }
 
         // TIER 3 (DESPERATION): If even Forward Checking fails, just pick any basic legal move
-        for (int r = 0; r < SIZE; r++) {
-            for (int c = 0; c < SIZE; c++) {
-                if (grid[r][c] == 0) {
-                    for (int v = 1; v <= SIZE; v++) {
-                        if (!state.getGraph().hasConflict(grid, r, c, v)) {
+        // for (int r = 0; r < SIZE; r++) {
+        //     for (int c = 0; c < SIZE; c++) {
+        //         if (grid[r][c] == 0) {
+        //             for (int v = 1; v <= SIZE; v++) {
+        //                 if (!state.getGraph().hasConflict(grid, r, c, v)) {
 
-                            state.setCpuReasoningExplanation(
-                                    "【DESPERATION】\n" +
-                                    "Human move made the board\n" +
-                                    "unsolvable. 0 paths remain.\n" +
-                                    "Executing basic legal move."
-                            );
+        //                     state.setCpuReasoningExplanation(
+        //                             "【DESPERATION】\n" +
+        //                             "Human move made the board\n" +
+        //                             "unsolvable. 0 paths remain.\n" +
+        //                             "Executing basic legal move."
+        //                     );
 
-                            return new int[]{ r, c, v };
+        //                     return new int[]{ r, c, v };
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+
+            // TIER 3 (DESPERATION): Pick the move that minimizes human's options
+int[] bestDesperationMove = {-1, -1, -1};
+double bestDesperationScore = -1.0;
+
+for (int r = 0; r < SIZE; r++) {
+    for (int c = 0; c < SIZE; c++) {
+        if (grid[r][c] == 0) {
+            for (int v = 1; v <= SIZE; v++) {
+                if (!state.getGraph().hasConflict(grid, r, c, v)) {
+                    
+                    // Simulate the move
+                    grid[r][c] = v;
+                    
+                    // Count how many legal moves the human has left
+                    int humanOptions = 0;
+                    for (int hr = 0; hr < SIZE; hr++) {
+                        for (int hc = 0; hc < SIZE; hc++) {
+                            if (grid[hr][hc] == 0) {
+                                for (int hv = 1; hv <= SIZE; hv++) {
+                                    if (!state.getGraph().hasConflict(grid, hr, hc, hv)) {
+                                        humanOptions++;
+                                    }
+                                }
+                            }
                         }
                     }
+                    
+                    // Score: fewer human options = better for CPU
+                    // Also factor in immediate reward
+                    double score = immediateReward(grid, r, c) 
+                                 - (humanOptions * 0.1);
+                    
+                    if (score > bestDesperationScore) {
+                        bestDesperationScore = score;
+                        bestDesperationMove[0] = r;
+                        bestDesperationMove[1] = c;
+                        bestDesperationMove[2] = v;
+                    }
+                    
+                    grid[r][c] = 0; // undo simulation
                 }
             }
         }
+    }
+}
+
+if (bestDesperationMove[0] != -1) {
+    state.setCpuReasoningExplanation(
+        "【DESPERATION — STRATEGIC】\n" +
+        "Board is unsolvable but CPU\n" +
+        "minimizes your options.\n" +
+        "────────────────────────────\n" +
+        "Human options remaining: " + (int)(bestDesperationScore) + "\n" +
+        "Executing least-bad move."
+    );
+    return bestDesperationMove;
+}
+
+
 
         return null; // Board is 100% full or completely locked
     }
