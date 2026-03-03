@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Time Complexity: BT Forward Check vs Trap Setter</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:ital,wght@0,300;0,400;1,300&display=swap');
+
+:root {
+  --bg:         #0c0e13;
+  --surface:    #12151d;
+  --surface2:   #181c27;
+  --surface3:   #1e2232;
+  --border:     #232840;
+  --border2:    #2c334f;
+  --text:       #cdd6f4;
+  --muted:      #6b7a9e;
+  --dim:        #3a4260;
+
+  --red:        #f38ba8;
+  --red-dim:    #58192c;
+  --red-bg:     rgba(243,139,168,0.055);
+
+  --orange:     #fab387;
+  --orange-dim: #5a2e10;
+  --orange-bg:  rgba(250,179,135,0.055);
+
+  --green:      #a6e3a1;
+  --green-dim:  #193b28;
+  --green-bg:   rgba(166,227,161,0.055);
+
+  --blue:       #89b4fa;
+  --blue-dim:   #152545;
+  --blue-bg:    rgba(137,180,250,0.06);
+
+  --gold:       #f9e2af;
+  --teal:       #94e2d5;
+  --mauve:      #cba6f7;
+
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+  --display: 'Syne', sans-serif;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { font-size:16px; scroll-behavior:smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-weight: 300;
+  line-height: 1.7;
+  min-height: 100vh;
+}
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background-image:
+    linear-gradient(rgba(137,180,250,0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(137,180,250,0.022) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events:none; z-index:0;
+}
+
+.page {
+  position:relative; z-index:1;
+  max-width:940px; margin:0 auto;
+  padding: 3.5rem 2.5rem 6rem;
+}
+
+/* ─── TITLE ─── */
+.title-block {
+  margin-bottom: 3.8rem;
+  padding-bottom: 2.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.eyebrow {
+  font-family: var(--mono); font-size: 0.67rem;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--blue); margin-bottom: 1rem;
+  display: flex; align-items: center; gap: 0.7rem;
+}
+.eyebrow::before { content:''; width:28px; height:1px; background:var(--blue); display:block; }
+.main-title {
+  font-family: var(--display); font-size: clamp(1.75rem, 4vw, 2.7rem);
+  font-weight: 800; line-height: 1.1; letter-spacing: -0.02em;
+  color: #fff; margin-bottom: 0.9rem;
+}
+.main-title .vs { color: var(--muted); font-weight: 400; font-size: 0.7em; padding: 0 0.3em; }
+.main-title .strat-a { color: var(--orange); }
+.main-title .strat-b { color: var(--red); }
+.subtitle { font-size: 0.92rem; color: var(--muted); max-width: 620px; line-height: 1.65; }
+.tag-row { display:flex; gap:0.6rem; margin-top:1.3rem; flex-wrap:wrap; }
+.tag {
+  font-family: var(--mono); font-size: 0.63rem;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 0.25em 0.7em; border-radius: 2px;
+  border: 1px solid var(--border2); color: var(--muted);
+}
+.tag.a { border-color: var(--orange-dim); color: var(--orange); }
+.tag.b { border-color: var(--red-dim);    color: var(--red); }
+
+/* ─── SECTION ─── */
+.section { margin-bottom: 3.5rem; }
+.section-head { display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem; }
+.section-num {
+  font-family: var(--mono); font-size: 0.62rem; color: var(--dim);
+  letter-spacing: 0.1em; border: 1px solid var(--border);
+  padding: 0.2em 0.55em; border-radius: 2px; white-space: nowrap;
+}
+.section-title { font-family: var(--display); font-size: 1.1rem; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+.section-line { flex:1; height:1px; background:var(--border); }
+
+/* ─── VAR GRID ─── */
+.var-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap:1px; background:var(--border);
+  border:1px solid var(--border); border-radius:6px; overflow:hidden;
+}
+.var-cell { background:var(--surface); padding:0.82rem 1.15rem; display:flex; align-items:baseline; gap:0.75rem; }
+.var-sym  { font-family:var(--mono); font-size:0.98rem; font-weight:600; color:var(--gold); min-width:1.4rem; }
+.var-eq   { color:var(--dim); font-family:var(--mono); font-size:0.8rem; }
+.var-desc { font-size:0.84rem; color:var(--muted); }
+
+/* ─── STRATEGY HEADER CARDS ─── */
+.strat-headers {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+.strat-card {
+  border: 1px solid; border-radius: 8px; padding: 1.3rem 1.5rem; position: relative; overflow: hidden;
+}
+.strat-card::before {
+  content:''; position:absolute; top:0; right:0; bottom:0; width:40%;
+  background: radial-gradient(ellipse at right center, currentColor 0%, transparent 70%);
+  opacity: 0.04; pointer-events:none;
+}
+.strat-card.btfc  { border-color: var(--orange-dim); background: var(--orange-bg); color: var(--orange); }
+.strat-card.trap  { border-color: var(--red-dim);    background: var(--red-bg);    color: var(--red); }
+.strat-name {
+  font-family: var(--display); font-size: 0.78rem; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; margin-bottom: 0.35rem;
+}
+.strat-full { font-family: var(--display); font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff; }
+.strat-complexity { font-family: var(--mono); font-size: 1.3rem; font-weight: 600; margin-bottom: 0.3rem; }
+.strat-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.55; }
+
+/* ─── DERIV CARD ─── */
+.deriv-card { background:var(--surface); border:1px solid var(--border); border-radius:6px; overflow:hidden; margin-bottom:1.1rem; }
+.deriv-header {
+  display:flex; align-items:center; gap:0.8rem;
+  padding:0.6rem 1.2rem; background:var(--surface2); border-bottom:1px solid var(--border);
+}
+.deriv-tag {
+  font-family:var(--mono); font-size:0.63rem; letter-spacing:0.12em;
+  text-transform:uppercase; padding:0.2em 0.6em; border-radius:2px; white-space:nowrap;
+}
+.deriv-tag.orange { background:var(--orange-dim); color:var(--orange); }
+.deriv-tag.red    { background:var(--red-dim);    color:var(--red); }
+.deriv-tag.blue   { background:var(--blue-dim);   color:var(--blue); }
+.deriv-tag.green  { background:var(--green-dim);  color:var(--green); }
+.deriv-header-title { font-family:var(--mono); font-size:0.75rem; color:var(--muted); letter-spacing:0.05em; }
+.deriv-body { padding:1.2rem 1.4rem; }
+.deriv-body p { font-size:0.89rem; color:var(--muted); margin-bottom:0.58rem; }
+.deriv-body p:last-child { margin-bottom:0; }
+
+.math-block {
+  font-family:var(--mono); font-size:0.82rem;
+  background:var(--bg); color:var(--text);
+  border:1px solid var(--border); border-left:3px solid var(--blue);
+  border-radius:4px; padding:0.88rem 1.2rem;
+  margin:0.72rem 0; white-space:pre; overflow-x:auto; line-height:1.95;
+}
+.math-block.orange-accent { border-left-color: var(--orange); }
+.math-block.red-accent    { border-left-color: var(--red); }
+.math-block.green-accent  { border-left-color: var(--green); }
+
+.math-inline {
+  font-family:var(--mono); font-size:0.84em; color:var(--gold);
+  background:rgba(249,226,175,0.08); padding:0.1em 0.38em; border-radius:3px;
+}
+.step { display:flex; gap:0.9rem; margin:0.42rem 0; align-items:flex-start; }
+.step-n { font-family:var(--mono); font-size:0.67rem; color:var(--dim); min-width:1.3rem; padding-top:0.28rem; user-select:none; }
+
+/* ─── RESULT BOX ─── */
+.result-box {
+  border-radius:6px; padding:1.15rem 1.5rem; margin:1.25rem 0;
+  display:flex; align-items:center; gap:1.8rem; border:1px solid;
+}
+.result-box.orange { border-color:var(--orange-dim); background:var(--orange-bg); color:var(--orange); }
+.result-box.red    { border-color:var(--red-dim);    background:var(--red-bg);    color:var(--red); }
+.result-box.green  { border-color:var(--green-dim);  background:var(--green-bg);  color:var(--green); }
+.result-box.blue   { border-color:var(--blue-dim);   background:var(--blue-bg);   color:var(--blue); }
+.result-label  { font-family:var(--mono); font-size:0.63rem; letter-spacing:0.14em; text-transform:uppercase; opacity:0.6; margin-bottom:0.28rem; }
+.result-formula{ font-family:var(--mono); font-size:1.45rem; font-weight:600; letter-spacing:0.02em; }
+.result-note   { font-size:0.8rem; opacity:0.65; font-style:italic; margin-top:0.18rem; }
+
+/* ─── PHASE PIPELINE ─── */
+.pipeline {
+  display:flex; flex-direction:column; gap:0;
+  border:1px solid var(--border); border-radius:6px; overflow:hidden;
+}
+.phase-row {
+  display:grid; grid-template-columns: 180px 1fr;
+  border-bottom:1px solid var(--border);
+}
+.phase-row:last-child { border-bottom:none; }
+.phase-label {
+  background:var(--surface2); padding:0.85rem 1.1rem;
+  border-right:1px solid var(--border);
+  font-family:var(--mono); font-size:0.72rem; letter-spacing:0.08em;
+  color:var(--muted); display:flex; align-items:center; gap:0.6rem;
+}
+.phase-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.phase-dot.t1 { background:var(--green); }
+.phase-dot.t2 { background:var(--orange); }
+.phase-dot.t3 { background:var(--red); }
+.phase-content {
+  background:var(--surface); padding:0.85rem 1.2rem;
+  font-size:0.86rem; color:var(--muted);
+}
+.phase-content .complexity {
+  font-family:var(--mono); font-size:0.82rem;
+  display:inline-block; margin-top:0.3rem;
+  padding:0.1em 0.5em; border-radius:3px;
+}
+.phase-content .complexity.t1 { color:var(--green);  background:var(--green-bg);  border:1px solid var(--green-dim); }
+.phase-content .complexity.t2 { color:var(--orange); background:var(--orange-bg); border:1px solid var(--orange-dim); }
+.phase-content .complexity.t3 { color:var(--red);    background:var(--red-bg);    border:1px solid var(--red-dim); }
+
+/* ─── TABLE ─── */
+.table-wrap { border:1px solid var(--border); border-radius:6px; overflow:hidden; }
+.cmp-table { width:100%; border-collapse:collapse; font-size:0.87rem; }
+.cmp-table thead tr { background:var(--surface2); }
+.cmp-table th {
+  padding:0.78rem 1.15rem; text-align:left;
+  font-family:var(--display); font-weight:700; font-size:0.76rem;
+  letter-spacing:0.06em; color:var(--muted); text-transform:uppercase;
+  border-bottom:1px solid var(--border);
+}
+.cmp-table th.h-btfc { color:var(--orange); }
+.cmp-table th.h-trap { color:var(--red); }
+.cmp-table td { padding:0.7rem 1.15rem; border-bottom:1px solid var(--border); vertical-align:middle; }
+.cmp-table tr:last-child td { border-bottom:none; }
+.cmp-table tr           { background:var(--surface); }
+.cmp-table tr:nth-child(even) { background:var(--surface2); }
+.col-feat { color:var(--muted); font-size:0.83rem; }
+.col-btfc { color:var(--orange); font-family:var(--mono); font-size:0.83rem; }
+.col-trap { color:var(--red);    font-family:var(--mono); font-size:0.83rem; }
+.highlight-row td { background:rgba(243,139,168,0.04) !important; }
+.highlight-row .col-btfc,
+.highlight-row .col-trap { font-size:0.9rem; font-weight:600; }
+.advantage-row td { background:rgba(250,179,135,0.03) !important; }
+.badge {
+  display:inline-block; font-family:var(--mono); font-size:0.59rem;
+  padding:0.15em 0.5em; border-radius:2px; letter-spacing:0.1em;
+  text-transform:uppercase; margin-left:0.45rem; vertical-align:middle;
+}
+.badge-win  { background:var(--green-dim);  color:var(--green); }
+.badge-lose { background:var(--red-dim);    color:var(--red); }
+.badge-mid  { background:var(--orange-dim); color:var(--orange); }
+
+/* ─── GROWTH BARS ─── */
+.growth-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+.growth-col-head {
+  font-family:var(--display); font-weight:700; font-size:0.85rem;
+  letter-spacing:0.02em; margin-bottom:1.1rem; padding-bottom:0.55rem;
+  border-bottom:2px solid; display:flex; align-items:center; gap:0.55rem;
+}
+.growth-col-head.btfc { color:var(--orange); border-color:var(--orange-dim); }
+.growth-col-head.trap { color:var(--red);    border-color:var(--red-dim); }
+.formula-small { font-family:var(--mono); font-size:0.68rem; opacity:0.55; font-weight:400; }
+
+.bar-row { display:flex; align-items:center; gap:0.8rem; margin-bottom:0.58rem; }
+.n-label { font-family:var(--mono); font-size:0.7rem; color:var(--dim); min-width:3.2rem; }
+.bar-track {
+  flex:1; height:20px; background:var(--surface2);
+  border-radius:3px; overflow:hidden; position:relative;
+  border:1px solid var(--border);
+}
+.bar-fill {
+  height:100%; border-radius:2px; display:flex; align-items:center;
+  padding-left:7px; font-family:var(--mono); font-size:0.6rem;
+  font-weight:600; white-space:nowrap;
+}
+.bar-fill.btfc { background:linear-gradient(90deg,var(--orange-dim),var(--orange)); color:#0c0e13; }
+.bar-fill.trap { background:linear-gradient(90deg,var(--red-dim),var(--red)); color:#fff; }
+.overflow-chip {
+  position:absolute; right:0; top:0; bottom:0; width:42px;
+  background:linear-gradient(90deg,transparent,var(--surface2) 55%);
+  display:flex; align-items:center; justify-content:flex-end;
+  padding-right:5px; font-family:var(--mono); font-size:0.6rem;
+}
+.overflow-chip.trap  { color:var(--red); }
+.overflow-chip.btfc  { color:var(--orange); }
+
+.note-box {
+  margin-top:0.75rem; border-radius:4px;
+  padding:0.6rem 0.9rem; font-family:var(--mono); font-size:0.72rem; line-height:1.6;
+}
+.note-box.orange { background:var(--orange-bg); border:1px dashed var(--orange-dim); color:var(--orange); }
+.note-box.red    { background:var(--red-bg);    border:1px dashed var(--red-dim);    color:var(--red); }
+
+/* ─── RATIO CARDS ─── */
+.ratio-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem; margin-top:1.4rem; }
+.ratio-card { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:1rem 1.15rem; }
+.ratio-card .label { font-family:var(--mono); font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); margin-bottom:0.35rem; }
+.ratio-card .value { font-family:var(--mono); font-size:0.98rem; font-weight:600; margin-bottom:0.2rem; }
+.ratio-card .note  { font-size:0.77rem; color:var(--muted); font-style:italic; }
+.ratio-card.orange .value { color:var(--orange); }
+.ratio-card.red    .value { color:var(--red); }
+.ratio-card.green  .value { color:var(--green); }
+
+/* ─── FOOTER ─── */
+.footer {
+  margin-top:4rem; padding-top:1.2rem; border-top:1px solid var(--border);
+  display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;
+}
+.footer span { font-family:var(--mono); font-size:0.66rem; color:var(--dim); letter-spacing:0.08em; }
+
+@media (max-width:640px) {
+  .page { padding:2rem 1.2rem 4rem; }
+  .growth-grid, .ratio-row, .var-grid, .strat-headers { grid-template-columns:1fr; }
+  .phase-row { grid-template-columns:1fr; }
+  .phase-label { border-right:none; border-bottom:1px solid var(--border); }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- TITLE -->
+  <div class="title-block">
+    <div class="eyebrow">Time Complexity Analysis · Towers CSP · Strategy Comparison</div>
+    <h1 class="main-title">
+      <span class="strat-a">BT Forward Check</span>
+      <span class="vs">vs</span>
+      <span class="strat-b">Trap Setter</span>
+    </h1>
+    <p class="subtitle">
+      Formal worst-case derivation comparing <em>StrategyBTForwardCheck</em> (three-tier backtracking
+      with forward checking) against the Trap Setter strategy (backtracking + MRV + LCV),
+      applied to the Towers puzzle as a CSP.
+    </p>
+    <div class="tag-row">
+      <span class="tag a">BT + Forward Check</span>
+      <span class="tag a">MRV (implicit)</span>
+      <span class="tag a">3-Tier Relaxation</span>
+      <span class="tag b">Trap Setter</span>
+      <span class="tag b">MRV + LCV</span>
+      <span class="tag b">Pure Backtracking</span>
+    </div>
+  </div>
+
+  <!-- §1 VARIABLES -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">§ 01</span>
+      <span class="section-title">Variable Definitions</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="var-grid">
+      <div class="var-cell"><span class="var-sym">N</span><span class="var-eq">=</span><span class="var-desc">board size (N × N grid)</span></div>
+      <div class="var-cell"><span class="var-sym">E</span><span class="var-eq">=</span><span class="var-desc">number of empty cells (≤ N²)</span></div>
+      <div class="var-cell"><span class="var-sym">b</span><span class="var-eq">=</span><span class="var-desc">branching factor (choices/node)</span></div>
+      <div class="var-cell"><span class="var-sym">d</span><span class="var-eq">=</span><span class="var-desc">recursion depth</span></div>
+      <div class="var-cell"><span class="var-sym">D</span><span class="var-eq">=</span><span class="var-desc">domain size after FC pruning</span></div>
+      <div class="var-cell"><span class="var-sym">T</span><span class="var-eq">=</span><span class="var-desc">number of tiers attempted</span></div>
+    </div>
+  </div>
+
+  <!-- §2 STRATEGY SUMMARIES -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">§ 02</span>
+      <span class="section-title">Strategy Overviews</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="strat-headers">
+      <div class="strat-card btfc">
+        <div class="strat-name">Strategy A</div>
+        <div class="strat-full">BT Forward Check</div>
+        <div class="strat-complexity">O(N² · D^N²)</div>
+        <div class="strat-desc">
+          Three-tier backtracking with domain-based forward checking.
+          Prunes branches the moment any unassigned cell loses all values.
+          Falls back through tiers: Perfect → Local Safe → Desperation.
+        </div>
+      </div>
+      <div class="strat-card trap">
+        <div class="strat-name">Strategy B</div>
+        <div class="strat-full">Trap Setter</div>
+        <div class="strat-complexity">O(N^(N²))</div>
+        <div class="strat-desc">
+          Backtracking augmented with MRV variable ordering and LCV value
+          ordering. No domain propagation — relies on constraint checking
+          only. Worst case explores the full exponential search tree.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- §3 BTFC DERIVATION -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">§ 03</span>
+      <span class="section-title">BT Forward Check — Derivation</span>
+      <div class="section-line"></div>
+    </div>
+
+    <!-- Tier structure -->
+    <div class="deriv-card">
+      <div class="deriv-header">
+        <span class="deriv-tag orange">OUTER LOOP</span>
+        <span class="deriv-header-title">findBestMove() — Scanning all (cell, value) pairs</span>
+      </div>
+      <div class="deriv-body">
+        <div class="step"><span class="step-n">1.</span>
+          <p>Outer double loop iterates over all cells: <span class="math-inline">O(N²)</span> cells.</p>
+        </div>
+        <div class="step"><span class="step-n">2.</span>
+          <p>Inner loop tries each of up to <span class="math-inline">N</span> values per cell.</p>
+        </div>
+        <div class="math-block orange-accent">Outer scan cost:   O(N²) cells × O(N) values = O(N³)</div>
+      </div>
+    </div>
+
+    <div class="deriv-card">
+      <div class="deriv-header">
+        <span class="deriv-tag orange">FC STEP</span>
+        <span class="deriv-header-title">applyForwardChecking() — Per candidate move</span>
+      </div>
+      <div class="deriv-body">
+        <div class="step"><span class="step-n">1.</span>
+          <p>For each placed value, propagate domain removals across the row
+          and column: <span class="math-inline">2N</span> neighbour cells checked.</p>
+        </div>
+        <div class="step"><span class="step-n">2.</span>
+          <p>After each removal, <span class="math-inline">isDomainEmpty()</span> scans
+          <span class="math-inline">N</span> values → <span class="math-inline">O(N)</span> per check.</p>
+        </div>
+        <div class="math-block orange-accent">FC cost per move:   O(N) neighbours × O(N) domain scan = O(N²)</div>
+      </div>
+    </div>
+
+    <div class="deriv-card">
+      <div class="deriv-header">
+        <span class="deriv-tag orange">TIER 1</span>
+        <span class="deriv-header-title">isPathSafe() — Full DFS with FC (MRV-ordered)</span>
+      </div>
+      <div class="deriv-body">
+        <div class="step"><span class="step-n">1.</span>
+          <p><span class="math-inline">isPathSafe()</span> recursively selects the cell with minimum
+          remaining domain (implicit MRV), branching over its domain values.</p>
+        </div>
+        <div class="step"><span class="step-n">2.</span>
+          <p>At each recursive call, the FC check propagates and prunes branches
+          with empty domains immediately. In the worst case all <span class="math-inline">N²</span> cells
+          must be filled and each has domain size <span class="math-inline">D</span> after pruning:</p>
+        </div>
+        <div class="math-block orange-accent">Recurrence:    T(d) = D · T(d − 1)   per recursion level
+Unrolled:      T = D^(N²)
+
+Per outer (cell, value) candidate:   O(N²) · O(D^(N²))
+Full Tier-1 cost:                     O(N³) · O(D^(N²)) = O(N³ · D^(N²))</div>
+        <div class="step"><span class="step-n">3.</span>
+          <p>In practice, FC heavily prunes D. But worst case
+          <span class="math-inline">D → N</span>, giving <span class="math-inline">O(N³ · N^(N²))</span> ≡ <span class="math-inline">O(N^(N²+3))</span>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="deriv-card">
+      <div class="deriv-header">
+        <span class="deriv-tag blue">TIER 2 / 3</span>
+        <span class="deriv-header-title">Fallback and Desperation tiers</span>
+      </div>
+      <div class="deriv-body">
+        <div class="step"><span class="step-n">Tier 2.</span>
+          <p>Local FC safe: <span class="math-inline">isImmediateMoveSafe</span> passes but
+          <span class="math-inline">isPathSafe</span> fails. Cost = outer scan + one FC call per move:
+          <span class="math-inline">O(N³ · N²) = O(N⁵)</span>.</p>
+        </div>
+        <div class="step"><span class="step-n">Tier 3.</span>
+          <p>Desperation: counts all legal human moves after each CPU move.
+          Triple nested loop: <span class="math-inline">O(N²)</span> CPU cells × <span class="math-inline">N</span> values ×
+          <span class="math-inline">O(N³)</span> human option count = <span class="math-inline">O(N⁶)</span>.</p>
+        </div>
+        <div class="math-block blue">Tier 2 worst case:   O(N⁵)
+Tier 3 worst case:   O(N⁶)
+
+Both are dominated by Tier 1 when board is not doomed.</div>
+      </div>
+    </div>
+
+    <div class="result-box orange">
+      <div>
+        <div class="result-label">BT Forward Check · Dominant Worst-Case</div>
+        <div class="result-formula">O( N² · D^N² )</div>
+        <div class="result-note">D = pruned domain size after FC; D ≪ N in practice → massive real-world speedup</div>
+      </div>
+    </div>
+    <div class="result-box blue">
+      <div>
+        <div class="result-label">BT Forward Check · Theoretical Worst Case (D = N)</div>
+        <div class="result-formula">O( N^(N²+3) )</div>
+        <div class="result-note">Only when FC prunes nothing — degenerate case, same class as Trap Setter but with higher constant</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- §4 TRAP SETTER DERIVATION -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">§ 04</span>
+      <span class="section-title">Trap Setter — Derivation (Summary)</span>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="deriv-card">
+      <div class="deriv-header">
+        <span class="deriv-tag red">MRV</span>
+        <span class="deriv-header-title">Variable selection cost</span>
+      </div>
+      <div class="deriv-body">
+        <div class="math-block red-accent">Scan + domain size per cell:   O(N²) × O(N²) = O(N⁴)</div>
+      </div>
+    </div>
+
+    <div class="deriv-card">
+      <div class="deriv-header">
+        <span class="deriv-tag red">LCV</span>
+        <span class="deriv-header-title">Value ordering cost</span>
+      </div>
+      <div class="deriv-body">
+        <div class="math-block red-accent">LCV per variable:              O(N) × O(N²) = O(N³)
+Combined with MRV selection:   O(N²) × O(N³) = O(N⁵)</div>
+      </div>
+    </div>
+
+    <div class="deriv-card">
+      <div class="deriv-header">
+        <span class="deriv-tag red">BACKTRACK</span>
+        <span class="deriv-header-title">Backtracking recurrence</span>
+      </div>
+      <div class="deriv-body">
+        <div class="math-block red-accent">T(d) = b · T(d − 1)  →  bᵈ
+
+b = N   (choices per cell)
+d = N²  (empty cells = depth)
+
+⟹  T = N^(N²)</div>
+      </div>
+    </div>
+
+    <div class="result-box red">
+      <div>
+        <div class="result-label">Trap Setter · Worst-Case (no FC propagation)</div>
+        <div class="result-formula">O( N^(N²) )</div>
+        <div class="result-note">MRV/LCV are O(N⁵) overhead — dominated by the exponential search tree</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- §5 PHASE PIPELINE -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">§ 05</span>
+      <span class="section-title">BT Forward Check — 3-Tier Execution Pipeline</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="pipeline">
+      <div class="phase-row">
+        <div class="phase-label"><span class="phase-dot t1"></span>TIER 1 · Perfect</div>
+        <div class="phase-content">
+          FC passes AND full DFS path to completion is valid. Picks highest-scoring
+          move that provably leads to a solvable board.
+          <div><span class="complexity t1">O(N³ · D^N²)</span></div>
+        </div>
+      </div>
+      <div class="phase-row">
+        <div class="phase-label"><span class="phase-dot t2"></span>TIER 2 · Fallback</div>
+        <div class="phase-content">
+          FC passes locally but no full safe path exists. Picks the best locally-safe
+          move by immediate reward. Board may be doomed but move itself is legal.
+          <div><span class="complexity t2">O(N⁵)</span></div>
+        </div>
+      </div>
+      <div class="phase-row">
+        <div class="phase-label"><span class="phase-dot t3"></span>TIER 3 · Desperation</div>
+        <div class="phase-content">
+          Even FC fails entirely. Counts the human's remaining legal moves after each
+          possible CPU move and picks the one that minimises human options (adversarial).
+          <div><span class="complexity t3">O(N⁶)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- §6 COMPARISON TABLE -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">§ 06</span>
+      <span class="section-title">Direct Comparison</span>
+      <div class="section-line"></div>
+    </div>
+    <div class="table-wrap">
+      <table class="cmp-table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th class="h-btfc">BT Forward Check</th>
+            <th class="h-trap">Trap Setter</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="col-feat">Heuristics</td>
+            <td class="col-btfc">FC domain propagation + implicit MRV</td>
+            <td class="col-trap">Explicit MRV + LCV (no propagation)</td>
+          </tr>
+          <tr>
+            <td class="col-feat">Domain pruning</td>
+            <td class="col-btfc">Yes — removes values on assignment <span class="badge badge-win">✓ Better</span></td>
+            <td class="col-trap">No — checks conflicts only</td>
+          </tr>
+          <tr class="highlight-row">
+            <td class="col-feat">Worst-case complexity</td>
+            <td class="col-btfc">O(N² · D^N²) <span class="badge badge-mid">D ≪ N typical</span></td>
+            <td class="col-trap">O(N^N²) <span class="badge badge-lose">Full tree</span></td>
+          </tr>
+          <tr>
+            <td class="col-feat">Theoretical worst (D=N)</td>
+            <td class="col-btfc">O(N^(N²+3))</td>
+            <td class="col-trap">O(N^N²)</td>
+          </tr>
+          <tr class="advantage-row">
+            <td class="col-feat">Typical (practical) case</td>
+            <td class="col-btfc">D ≈ 1–3 → near-linear depth <span class="badge badge-win">✓ Fast</span></td>
+            <td class="col-trap">b = N always → full branching</td>
+          </tr>
+          <tr>
+            <td class="col-feat">Pruning mechanism</td>
+            <td class="col-btfc">Empty domain detection (early)</td>
+            <td class="col-trap">Constraint conflict (late)</td>
+          </tr>
+          <tr>
+            <td class="col-feat">Tiers / fallback</td>
+            <td class="col-btfc">3 tiers (Perfect → Local → Desperation)</td>
+            <td class="col-trap">Single strategy, no tiering</td>
+          </tr>
+          <tr>
+            <td class="col-feat">Visibility validation</td>
+            <td class="col-btfc">isFullBoardVisibilityValid() at leaf</td>
+            <td class="col-trap">Constraint graph only</td>
+          </tr>
+          <tr>
+            <td class="col-feat">Adversarial fallback</td>
+            <td class="col-btfc">Minimises human moves (Tier 3) <span class="badge badge-win">✓ Strategic</span></td>
+            <td class="col-trap">None — picks first legal move</td>
+          </tr>
+          <tr>
+            <td class="col-feat">Memory (call stack)</td>
+            <td class="col-btfc">O(N²) depth + O(N³) domains/level</td>
+            <td class="col-trap">O(N²) depth</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- §7 VISUAL GROWTH -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-num">§ 07</span>
+      <span class="section-title">Visual Growth — Practical vs Theoretical</span>
+      <div class="section-line"></div>
+    </div>
+
+    <div class="growth-grid">
+      <!-- BTFC: practical case D=2 -->
+      <div>
+        <div class="growth-col-head btfc">BT Forward Check <span class="formula-small">O(N²·2^N²) practical</span></div>
+        <!-- N=2: 4·4=16 -->
+        <div class="bar-row"><span class="n-label">N = 2</span>
+          <div class="bar-track"><div class="bar-fill btfc" style="width:4%">16</div></div></div>
+        <!-- N=3: 9·512 ≈ 4600 -->
+        <div class="bar-row"><span class="n-label">N = 3</span>
+          <div class="bar-track"><div class="bar-fill btfc" style="width:10%">~4.6K</div></div></div>
+        <!-- N=4: 16·65K ≈ 1M -->
+        <div class="bar-row"><span class="n-label">N = 4</span>
+          <div class="bar-track"><div class="bar-fill btfc" style="width:35%">~1×10⁶</div></div></div>
+        <!-- N=5: 25·33M ≈ 840M -->
+        <div class="bar-row"><span class="n-label">N = 5</span>
+          <div class="bar-track" style="position:relative">
+            <div class="bar-fill btfc" style="width:100%">~8×10⁸</div>
+            <div class="overflow-chip btfc">∞</div>
+          </div></div>
+        <!-- N=6 -->
+        <div class="bar-row"><span class="n-label">N = 6</span>
+          <div class="bar-track" style="position:relative">
+            <div class="bar-fill btfc" style="width:100%"></div>
+            <div class="overflow-chip btfc">∞∞</div>
+          </div></div>
+        <div class="note-box orange">
+          D = 2 (typical after FC) still grows<br>
+          exponentially — but far slower than N^N²
+        </div>
+      </div>
+
+      <!-- TRAP: full N^N² -->
+      <div>
+        <div class="growth-col-head trap">Trap Setter <span class="formula-small">O(N^N²) theoretical</span></div>
+        <!-- N=2: 16 -->
+        <div class="bar-row"><span class="n-label">N = 2</span>
+          <div class="bar-track"><div class="bar-fill trap" style="width:4%">16</div></div></div>
+        <!-- N=3: 19683 -->
+        <div class="bar-row"><span class="n-label">N = 3</span>
+          <div class="bar-track"><div class="bar-fill trap" style="width:14%">~2×10⁴</div></div></div>
+        <!-- N=4: 4^16 ≈ 4.3B -->
+        <div class="bar-row"><span class="n-label">N = 4</span>
+          <div class="bar-track" style="position:relative">
+            <div class="bar-fill trap" style="width:100%">~4×10⁹</div>
+            <div class="overflow-chip trap">∞</div>
+          </div></div>
+        <!-- N=5 -->
+        <div class="bar-row"><span class="n-label">N = 5</span>
+          <div class="bar-track" style="position:relative">
+            <div class="bar-fill trap" style="width:100%"></div>
+            <div class="overflow-chip trap">∞∞</div>
+          </div></div>
+        <!-- N=6 -->
+        <div class="bar-row"><span class="n-label">N = 6</span>
+          <div class="bar-track" style="position:relative">
+            <div class="bar-fill trap" style="width:100%"></div>
+            <div class="overflow-chip trap">∞∞∞</div>
+          </div></div>
+        <div class="note-box red">
+          ⚠ N=4 already requires ~4×10⁹ ops<br>
+          MRV/LCV reduce constant, not the exponent
+        </div>
+      </div>
+    </div>
+
+    <!-- ratio cards -->
+    <div class="ratio-row">
+      <div class="ratio-card orange">
+        <div class="label">BTFC at N=4 (D=2)</div>
+        <div class="value">16 · 2^16 ≈ 1×10⁶</div>
+        <div class="note">Manageable with FC pruning</div>
+      </div>
+      <div class="ratio-card red">
+        <div class="label">Trap Setter at N=4</div>
+        <div class="value">4^16 ≈ 4.3×10⁹</div>
+        <div class="note">~4,300× more operations</div>
+      </div>
+      <div class="ratio-card green">
+        <div class="label">Speedup at N=4</div>
+        <div class="value">~4,300 ×</div>
+        <div class="note">FC pruning advantage (D=2 assumption)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <span>COMPLEXITY ANALYSIS · TOWERS CSP · BT FORWARD CHECK vs TRAP SETTER</span>
+    <span>BTFC O(N²·D^N²)  ·  Trap Setter O(N^N²)</span>
+  </div>
+
+</div>
+</body>
+</html>
