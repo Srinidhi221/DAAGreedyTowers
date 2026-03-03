@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Towers – Backtracking & Complexity Viz</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#070910;color:#f0f2fa;font-family:'IBM Plex Mono','Courier New',monospace;min-height:100vh;font-weight:600}
+.tabs{display:flex;gap:12px;padding:20px 32px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.tab{padding:10px 26px;border-radius:8px 8px 0 0;cursor:pointer;font-size:13px;font-weight:700;border:none;background:rgba(255,255,255,.05);color:#a0b4cc;transition:all .2s;font-family:'IBM Plex Mono',monospace}
+.tab.active{background:rgba(52,211,153,.12);color:#34d399;border-bottom:2px solid #34d399}
+.page{display:none;padding:26px 32px}.page.active{display:block}
+.bt-layout{display:grid;grid-template-columns:1fr 360px;gap:22px}
+.card{background:#0d1220;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:20px}
+.clue-row{display:flex;gap:4px;justify-content:center}
+.clue{width:70px;height:36px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#e8c05a;background:rgba(201,168,76,.1);border:1px solid rgba(201,168,76,.35);border-radius:6px}
+.clue.side{width:36px;height:70px}
+.board-row{display:flex;gap:4px}
+.grid-wrap{display:flex;flex-direction:column;gap:4px;align-items:center}
+.cell{width:70px;height:70px;border-radius:10px;border:2px solid rgba(255,255,255,.15);background:#131824;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;transition:all .35s;color:#f0f2fa}
+.cell.placing{border-color:#34d399;background:rgba(52,211,153,.15);color:#34d399}
+.cell.backtrack{border-color:#fb7185;background:rgba(251,113,133,.15);color:#fb7185;animation:shake .3s}
+.cell.fixed{border-color:rgba(201,168,76,.5);background:rgba(201,168,76,.08);color:#e8c05a}
+.cell.solved{border-color:#34d399;background:rgba(52,211,153,.1);color:#34d399}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.stack-entry{padding:9px 14px;border-radius:8px;border:1px solid rgba(201,168,76,.4);background:rgba(201,168,76,.08);font-size:12px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:8px;animation:slideIn .2s;color:#f0f2fa}
+.stack-entry.bt{border-color:rgba(251,113,133,.6);background:rgba(251,113,133,.1);color:#fb7185}
+@keyframes slideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+.depth-pill{background:rgba(201,168,76,.25);color:#e8c05a;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:700;flex-shrink:0}
+.status-bar{margin-top:14px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:700;text-align:center;transition:all .3s}
+.status-bar.e{background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.4);color:#34d399}
+.status-bar.b{background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.4);color:#fb7185}
+.status-bar.s{background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.4);color:#e8c05a}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.stat{background:#070910;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px;text-align:center}
+.sv{font-size:24px;font-weight:700}.sl{font-size:11px;color:#a0b4cc;text-transform:uppercase;letter-spacing:.07em;margin-top:3px;font-weight:600}
+.controls{display:flex;gap:10px;margin-bottom:18px;align-items:center;flex-wrap:wrap}
+.btn{padding:9px 20px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:700;font-family:'IBM Plex Mono',monospace;transition:all .2s}
+.bg{background:rgba(52,211,153,.18);color:#34d399;border:1px solid rgba(52,211,153,.4)}.bg:hover{background:rgba(52,211,153,.3)}
+.bb{background:rgba(56,189,248,.18);color:#38bdf8;border:1px solid rgba(56,189,248,.4)}.bb:hover{background:rgba(56,189,248,.3)}
+.bo{background:rgba(201,168,76,.18);color:#e8c05a;border:1px solid rgba(201,168,76,.4)}.bo:hover{background:rgba(201,168,76,.3)}
+.speed-wrap{display:flex;align-items:center;gap:8px;color:#a0b4cc;font-size:12px;font-weight:600}
+input[type=range]{accent-color:#34d399;width:90px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.li{display:flex;align-items:center;gap:6px;font-size:12px;color:#b8c8d8;font-weight:600}
+.dot{width:12px;height:12px;border-radius:3px}
+.card-title{font-size:11px;letter-spacing:.1em;color:#a0b4cc;text-transform:uppercase;margin-bottom:14px;font-weight:700}
+
+/* Complexity tab */
+.comp-layout{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+h2{font-size:16px;font-weight:700;margin-bottom:6px;color:#f0f2fa}
+.formula{font-size:28px;font-weight:700;text-align:center;padding:10px 0}
+.formula-sub{text-align:center;color:#a0b4cc;font-size:12px;margin-bottom:10px;font-weight:600}
+.chart-wrap{position:relative;width:100%;height:260px}
+.info-box{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:14px;margin-top:14px;font-size:12px;color:#b8c8d8;line-height:1.8;font-weight:600}
+.info-box strong{color:#f0f2fa;font-weight:700}
+.info-box code{background:rgba(255,255,255,.08);padding:1px 5px;border-radius:3px;color:#f0f2fa}
+
+/* Dynamic controls */
+.dyn-controls{display:flex;gap:14px;margin-bottom:18px;align-items:center;flex-wrap:wrap}
+.param-wrap{display:flex;align-items:center;gap:8px;color:#a0b4cc;font-size:12px;font-weight:600;background:#0d1220;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 14px}
+.param-wrap label{color:#e8c05a;font-weight:700}
+.param-val{color:#34d399;font-weight:700;min-width:28px;text-align:right;font-size:13px}
+input[type=range].blue{accent-color:#38bdf8}
+
+/* Legend row */
+.chart-legend{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px}
+.cl-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#b8c8d8;font-weight:600}
+.cl-line{width:28px;height:3px;border-radius:2px}
+</style>
+</head>
+<body>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('bt')">🔍 Backtracking Trace</div>
+  <div class="tab" onclick="showTab('comp')">📈 Complexity Analysis</div>
+</div>
+
+<!-- ═══ BACKTRACKING TAB ═══ -->
+<div class="page active" id="page-bt">
+  <div class="controls">
+    <button class="btn bg" id="btnPlay" onclick="startAuto()">▶ Auto Play</button>
+    <button class="btn bb" onclick="stepOnce()">Step →</button>
+    <button class="btn bo" onclick="resetAll()">↺ Reset</button>
+    <div class="speed-wrap">
+      Speed: <input type="range" id="spd" min="150" max="1400" value="700">
+      <span id="spdLbl">700ms</span>
+    </div>
+  </div>
+  <div class="legend">
+    <div class="li"><div class="dot" style="background:#34d399;border:2px solid #34d399"></div>Placing value</div>
+    <div class="li"><div class="dot" style="background:rgba(251,113,133,.5);border:2px solid #fb7185"></div>Conflict → Backtrack</div>
+    <div class="li"><div class="dot" style="background:rgba(201,168,76,.3);border:2px solid #e8c05a"></div>Final solution</div>
+  </div>
+  <div class="bt-layout">
+    <div class="card">
+      <div class="card-title">4×4 Towers — Live Solve (21 nodes · 5 prunes)</div>
+      <div class="grid-wrap" id="gridWrap"></div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-title">Call Stack — Current Path</div>
+        <div id="stackPanel"></div>
+        <div class="status-bar e" id="statusBar">Ready — press Play or Step</div>
+        <div class="stats">
+          <div class="stat"><div class="sv" style="color:#34d399" id="nv">0</div><div class="sl">Nodes Explored</div></div>
+          <div class="stat"><div class="sv" style="color:#fb7185" id="pv">0</div><div class="sl">Branches Pruned</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ COMPLEXITY TAB ═══ -->
+<div class="page" id="page-comp">
+  <div class="dyn-controls">
+    <div class="param-wrap">
+      <label>N (board size)</label>
+      <input type="range" id="paramN" min="3" max="8" value="4" oninput="onParamChange()">
+      <span class="param-val" id="lblN">4</span>
+    </div>
+    <div class="param-wrap">
+      <label>n (empty cells)</label>
+      <input type="range" id="paramEmpty" min="1" max="64" value="10" oninput="onParamChange()">
+      <span class="param-val" id="lblEmpty">10</span>
+    </div>
+    <div class="param-wrap">
+      <label>FC prune rate</label>
+      <input type="range" class="blue" id="paramPrune" min="0" max="95" value="60" oninput="onParamChange()">
+      <span class="param-val" id="lblPrune">60%</span>
+    </div>
+    <div style="font-size:12px;color:#a0b4cc;padding:4px 0;font-weight:600">
+      v = N = <span id="lblV" style="color:#fb923c;font-weight:700">4</span> &nbsp;·&nbsp;
+      n ≤ N² = <span id="lblNsq" style="color:#e8c05a;font-weight:700">16</span>
+    </div>
+  </div>
+
+  <div class="comp-layout">
+    <div class="card">
+      <h2>Time Complexity</h2>
+      <div id="timeFormula" class="formula" style="color:#fb923c"></div>
+      <div id="timeSub" class="formula-sub"></div>
+      <div class="chart-legend">
+        <div class="cl-item"><div class="cl-line" style="background:#fb923c"></div>Brute Force O(v<sup>n</sup>)</div>
+        <div class="cl-item"><div class="cl-line" style="background:#f43f5e;opacity:.8"></div>Outer Loop O(n·v)</div>
+        <div class="cl-item"><span style="width:28px;height:3px;display:inline-block;border-top:3px dashed #34d399"></span><span style="margin-left:6px">FC-pruned DFS</span></div>
+      </div>
+      <div class="chart-wrap"><canvas id="timeChart"></canvas></div>
+      <div class="info-box" id="timeInfo"></div>
+    </div>
+    <div class="card">
+      <h2>Space Complexity</h2>
+      <div id="spaceFormula" class="formula" style="color:#38bdf8"></div>
+      <div id="spaceSub" class="formula-sub"></div>
+      <div class="chart-legend">
+        <div class="cl-item"><div class="cl-line" style="background:#38bdf8"></div>Stack Depth O(n)</div>
+        <div class="cl-item"><span style="width:28px;height:3px;display:inline-block;border-top:3px dashed #a78bfa"></span><span style="margin-left:6px">Domain Copies O(n²·v)</span></div>
+      </div>
+      <div class="chart-wrap"><canvas id="spaceChart"></canvas></div>
+      <div class="info-box" id="spaceInfo"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOP=[2,1,4,3],BOT=[3,4,1,2],LEFT=[1,3,2,2],RIGHT=[2,3,1,2];
+const STEPS=[
+  {t:'p',r:0,c:0,v:3,n:1,p:0,l:'Try (1,1)→3  [MRV picks row 0]'},
+  {t:'p',r:0,c:1,v:2,n:2,p:0,l:'Try (1,2)→2'},
+  {t:'b',r:0,c:1,v:2,n:2,p:1,l:'FC: domain of (1,3) emptied → Backtrack'},
+  {t:'p',r:0,c:1,v:4,n:3,p:1,l:'Try (1,2)→4'},
+  {t:'p',r:0,c:2,v:2,n:4,p:1,l:'Try (1,3)→2'},
+  {t:'p',r:0,c:3,v:1,n:5,p:1,l:'Try (1,4)→1'},
+  {t:'p',r:1,c:0,v:2,n:6,p:1,l:'Try (2,1)→2'},
+  {t:'b',r:1,c:0,v:2,n:6,p:2,l:'Left clue conflict → Backtrack'},
+  {t:'p',r:1,c:0,v:1,n:7,p:2,l:'Try (2,1)→1'},
+  {t:'p',r:1,c:1,v:3,n:8,p:2,l:'Try (2,2)→3'},
+  {t:'p',r:1,c:2,v:4,n:9,p:2,l:'Try (2,3)→4'},
+  {t:'b',r:1,c:2,v:4,n:9,p:3,l:'Row conflict → Backtrack'},
+  {t:'b',r:1,c:1,v:3,n:9,p:4,l:'No value left for (2,3) → Backtrack'},
+  {t:'p',r:1,c:1,v:4,n:10,p:4,l:'Try (2,2)→4'},
+  {t:'p',r:1,c:2,v:3,n:11,p:4,l:'Try (2,3)→3'},
+  {t:'p',r:1,c:3,v:2,n:12,p:4,l:'Try (2,4)→2'},
+  {t:'p',r:2,c:0,v:4,n:13,p:4,l:'Try (3,1)→4'},
+  {t:'p',r:2,c:1,v:1,n:14,p:4,l:'Try (3,2)→1'},
+  {t:'p',r:2,c:2,v:2,n:15,p:4,l:'Try (3,3)→2'},
+  {t:'b',r:2,c:2,v:2,n:15,p:5,l:'Bottom clue would fail → Backtrack'},
+  {t:'p',r:2,c:2,v:1,n:16,p:5,l:'Try (3,3)→1  [only domain value]'},
+  {t:'p',r:2,c:3,v:3,n:17,p:5,l:'Try (3,4)→3'},
+  {t:'p',r:3,c:0,v:2,n:18,p:5,l:'Try (4,1)→2'},
+  {t:'p',r:3,c:1,v:3,n:19,p:5,l:'Try (4,2)→3'},
+  {t:'p',r:3,c:2,v:1,n:20,p:5,l:'Try (4,3)→1  [only domain value]'},
+  {t:'p',r:3,c:3,v:4,n:21,p:5,l:'Try (4,4)→4'},
+  {t:'s',r:-1,c:-1,v:0,n:21,p:5,l:'✓ All cells filled — Clues verified!'},
+];
+
+let grid,stack,idx,timer,running;
+function init(){
+  grid=Array.from({length:4},()=>Array(4).fill(0));
+  stack=[];idx=0;running=false;
+  document.getElementById('btnPlay').textContent='▶ Auto Play';
+}
+
+function buildBoard(){
+  const w=document.getElementById('gridWrap'); w.innerHTML='';
+  const tr=document.createElement('div');tr.className='clue-row';
+  tr.innerHTML='<div style="width:40px"></div>';
+  TOP.forEach(v=>{const d=document.createElement('div');d.className='clue';d.textContent='↓'+v;tr.appendChild(d);});
+  tr.innerHTML+='<div style="width:40px"></div>';w.appendChild(tr);
+  for(let r=0;r<4;r++){
+    const row=document.createElement('div');row.className='board-row';
+    const lc=document.createElement('div');lc.className='clue side';lc.style.cssText='display:flex;align-items:center;justify-content:center';lc.textContent='→'+LEFT[r];row.appendChild(lc);
+    for(let c=0;c<4;c++){const d=document.createElement('div');d.className='cell';d.id=`c${r}${c}`;row.appendChild(d);}
+    const rc=document.createElement('div');rc.className='clue side';rc.style.cssText='display:flex;align-items:center;justify-content:center';rc.textContent=RIGHT[r]+'←';row.appendChild(rc);
+    w.appendChild(row);
+  }
+  const br=document.createElement('div');br.className='clue-row';
+  br.innerHTML='<div style="width:40px"></div>';
+  BOT.forEach(v=>{const d=document.createElement('div');d.className='clue';d.textContent='↑'+v;br.appendChild(d);});
+  br.innerHTML+='<div style="width:40px"></div>';w.appendChild(br);
+}
+
+function paintGrid(hr,hc,cls){
+  for(let r=0;r<4;r++)for(let c=0;c<4;c++){
+    const el=document.getElementById(`c${r}${c}`);
+    const v=grid[r][c];
+    el.textContent=v||'';
+    if(r===hr&&c===hc) el.className='cell '+cls;
+    else if(v) el.className='cell fixed';
+    else el.className='cell';
+  }
+}
+
+function paintStack(){
+  const sp=document.getElementById('stackPanel');sp.innerHTML='';
+  stack.forEach((s,i)=>{
+    const d=document.createElement('div');d.className='stack-entry';
+    d.innerHTML=`<span class="depth-pill">D${i}</span>${s}`;sp.appendChild(d);
+  });
+}
+
+function setStatus(txt,cls){const sb=document.getElementById('statusBar');sb.textContent=txt;sb.className='status-bar '+cls;}
+function setStats(n,p){document.getElementById('nv').textContent=n;document.getElementById('pv').textContent=p;}
+
+function applyStep(s){
+  if(s.t==='p'){
+    grid[s.r][s.c]=s.v;stack.push(s.l);
+    paintGrid(s.r,s.c,'placing');setStatus('↓ '+s.l,'e');
+    paintStack();
+  } else if(s.t==='b'){
+    if(s.r>=0)grid[s.r][s.c]=0;
+    paintGrid(s.r,s.c,'backtrack');setStatus('↺ '+s.l,'b');
+    const entries=document.querySelectorAll('#stackPanel .stack-entry');
+    if(entries.length)entries[entries.length-1].classList.add('bt');
+    setTimeout(()=>{if(stack.length)stack.pop();paintStack();},380);
+  } else {
+    for(let r=0;r<4;r++)for(let c=0;c<4;c++)document.getElementById(`c${r}${c}`).className='cell solved';
+    setStatus('✓ SOLVED — All clues satisfied!','s');stopAuto();
+  }
+  setStats(s.n,s.p);
+}
+
+function stepOnce(){if(idx>=STEPS.length)return;applyStep(STEPS[idx++]);}
+function startAuto(){
+  if(running){stopAuto();return;}
+  running=true;document.getElementById('btnPlay').textContent='⏸ Pause';tick();
+}
+function tick(){
+  if(!running||idx>=STEPS.length){stopAuto();return;}
+  stepOnce();
+  const ms=parseInt(document.getElementById('spd').value);
+  timer=setTimeout(tick,ms);
+}
+function stopAuto(){running=false;clearTimeout(timer);document.getElementById('btnPlay').textContent='▶ Auto Play';}
+function resetAll(){
+  stopAuto();init();buildBoard();paintStack();
+  setStatus('Ready — press Play or Step','e');setStats(0,0);
+}
+document.getElementById('spd').oninput=function(){document.getElementById('spdLbl').textContent=this.value+'ms';};
+
+// ═══ COMPLEXITY ═══
+function getParams(){
+  const N=parseInt(document.getElementById('paramN').value);
+  const n=parseInt(document.getElementById('paramEmpty').value);
+  const pr=parseInt(document.getElementById('paramPrune').value)/100;
+  return {N,n,pr,v:N};
+}
+
+function onParamChange(){
+  const {N,n,pr,v}=getParams();
+  const maxN=N*N;
+  const paramEmpty=document.getElementById('paramEmpty');
+  paramEmpty.max=maxN;
+  if(n>maxN) paramEmpty.value=maxN;
+  const nn=Math.min(n,maxN);
+
+  document.getElementById('lblN').textContent=N;
+  document.getElementById('lblEmpty').textContent=nn;
+  document.getElementById('lblPrune').textContent=Math.round(pr*100)+'%';
+  document.getElementById('lblV').textContent=v;
+  document.getElementById('lblNsq').textContent=maxN;
+
+  document.getElementById('timeFormula').innerHTML=`O(n·v + v<sup style="font-size:16px">n</sup>)`;
+  document.getElementById('timeSub').textContent=
+    `Outer loop O(${maxN}·${v}) + isPathSafe DFS O(${v}^n)  [FC reduces by ~${Math.round(pr*100)}%]`;
+  document.getElementById('spaceFormula').innerHTML=`O(n²·v)`;
+  document.getElementById('spaceSub').textContent=
+    `Stack depth O(n) × domain copy O(n·v) per frame = O(n²·v)  →  ${nn}²×${v} = ${nn*nn*v} units`;
+
+  updateInfoBoxes(N,nn,pr,v);
+  drawTimeChart(N,nn,pr,v);
+  drawSpaceChart(N,nn,pr,v);
+}
+
+function updateInfoBoxes(N,n,pr,v){
+  const bruteNodes=Math.pow(v,n);
+  const fcNodes=Math.pow(v,n*(1-pr));
+  const outerLoop=N*N*v;
+  document.getElementById('timeInfo').innerHTML=
+    `<strong>Outer loop</strong>: iterates all cells × all values = <strong style="color:#f87171">O(n·v) = ${N*N}×${v} = ${outerLoop}</strong> candidate tries.<br><br>`+
+    `<strong>isPathSafe (DFS)</strong>: called once per candidate — worst case <strong style="color:#fb923c">O(v<sup>n</sup>) = ${v}^${n} ≈ ${bruteNodes.toExponential(2)}</strong> nodes.<br><br>`+
+    `<strong style="color:#34d399">Forward Checking</strong> prunes ~${Math.round(pr*100)}% of branches → effective nodes ≈ <strong style="color:#34d399">${fcNodes.toExponential(2)}</strong>.<br><br>`+
+    `<strong>Combined</strong>: dominated by isPathSafe → <strong>O(n·v · v<sup>n</sup>)</strong> ≈ <strong>O(v<sup>n</sup>)</strong> worst case.`;
+  document.getElementById('spaceInfo').innerHTML=
+    `<strong>Stack depth</strong>: one recursive frame per empty cell → <strong style="color:#38bdf8">O(n) = ${n}</strong> frames.<br><br>`+
+    `<strong>Domain copies</strong>: each <code>isPathSafe</code> frame copies the full domain array [n×v booleans] = <strong style="color:#a78bfa">O(n·v)</strong> per frame.<br><br>`+
+    `<strong>Total</strong>: O(n) frames × O(n·v) per frame = <strong style="color:#a78bfa">O(n²·v) = ${n}²×${v} = ${n*n*v} units</strong> for this config.<br><br>`+
+    `For outer loop domain copies: O(n²·v) dominates stack depth. At N=8 (64 cells) this becomes significant.`;
+}
+
+function drawAxes(g,P,W,H,gridLines=4){
+  g.strokeStyle='rgba(255,255,255,.15)';g.lineWidth=1;
+  g.beginPath();g.moveTo(P.l,P.t);g.lineTo(P.l,P.t+H);g.lineTo(P.l+W,P.t+H);g.stroke();
+  g.strokeStyle='rgba(255,255,255,.06)';
+  for(let i=1;i<=gridLines;i++){const y=P.t+H-(i/gridLines)*H;g.beginPath();g.moveTo(P.l,y);g.lineTo(P.l+W,y);g.stroke();}
+}
+
+function plotLine(g,points,color,dash,P,W,H,maxY){
+  g.strokeStyle=color;g.lineWidth=2.5;g.setLineDash(dash||[]);
+  g.beginPath();
+  const xs=points.map(p=>p[0]);
+  const minX=xs[0],maxX=xs[xs.length-1];
+  points.forEach(([x,y],i)=>{
+    const px=P.l+(x-minX)/(maxX-minX||1)*W;
+    const py=P.t+H-Math.min(y/maxY,1)*H;
+    i?g.lineTo(px,py):g.moveTo(px,py);
+  });
+  g.stroke();g.setLineDash([]);
+}
+
+function labelAxes(g,P,W,H,xLabel,yLabel,xTicks,minX,maxX){
+  g.fillStyle='#a0b4cc';g.font='bold 11px "IBM Plex Mono",monospace';g.textAlign='center';
+  xTicks.forEach(x=>{
+    const px=P.l+(x-minX)/(maxX-minX||1)*W;
+    g.fillText(x,px,P.t+H+16);
+  });
+  g.fillText(xLabel,P.l+W/2,P.t+H+38);
+  g.save();g.translate(14,P.t+H/2);g.rotate(-Math.PI/2);g.fillText(yLabel,0,0);g.restore();
+}
+
+function drawTimeChart(N,n,pr,v){
+  const cv=document.getElementById('timeChart');
+  const W0=cv.parentElement.clientWidth||480;
+  cv.width=W0;cv.height=260;
+  const g=cv.getContext('2d');
+  const P={t:30,r:20,b:50,l:58},cW=W0-P.l-P.r,cH=260-P.t-P.b;
+  g.clearRect(0,0,W0,260);
+  drawAxes(g,P,cW,cH);
+  const nMax=N*N;
+  const ns=[];for(let i=1;i<=nMax;i++)ns.push(i);
+  const maxY=Math.pow(v,nMax);
+  plotLine(g,ns.map(x=>[x,Math.pow(v,x)]),'#fb923c',[],P,cW,cH,maxY);
+  plotLine(g,ns.map(x=>[x,Math.pow(v,x*(1-pr))]),'#34d399',[8,4],P,cW,cH,maxY);
+  plotLine(g,ns.map(x=>[x,x*v]),'rgba(244,63,94,.85)',[],P,cW,cH,maxY);
+  const curX=P.l+(n-1)/(nMax-1||1)*cW;
+  g.strokeStyle='rgba(255,255,255,.4)';g.lineWidth=1;g.setLineDash([4,4]);
+  g.beginPath();g.moveTo(curX,P.t);g.lineTo(curX,P.t+cH);g.stroke();g.setLineDash([]);
+  g.fillStyle='rgba(255,255,255,.7)';g.font='bold 11px "IBM Plex Mono",monospace';g.textAlign='center';
+  g.fillText('n='+n,curX,P.t+10);
+  g.font='bold 11px "IBM Plex Mono",monospace';g.textAlign='left';
+  const lastX=P.l+cW;
+  g.fillStyle='#fb923c';g.fillText('Brute v^n',lastX-70,P.t+18);
+  g.fillStyle='#34d399';g.fillText('FC-pruned',lastX-70,P.t+32);
+  g.fillStyle='rgba(244,63,94,1)';g.fillText('n·v loop',lastX-70,P.t+46);
+  const ticks=[];for(let i=0;i<=nMax;i+=Math.max(1,Math.floor(nMax/6)))ticks.push(i);
+  labelAxes(g,P,cW,cH,'n (empty cells)','Nodes (log scale)',ticks,1,nMax);
+}
+
+function drawSpaceChart(N,n,pr,v){
+  const cv=document.getElementById('spaceChart');
+  const W0=cv.parentElement.clientWidth||480;
+  cv.width=W0;cv.height=260;
+  const g=cv.getContext('2d');
+  const P={t:30,r:20,b:50,l:58},cW=W0-P.l-P.r,cH=260-P.t-P.b;
+  g.clearRect(0,0,W0,260);
+  drawAxes(g,P,cW,cH);
+  const nMax=N*N;
+  const ns=[];for(let i=1;i<=nMax;i++)ns.push(i);
+  const maxY=nMax*nMax*v;
+  plotLine(g,ns.map(x=>[x,x]),'#38bdf8',[],P,cW,cH,maxY);
+  plotLine(g,ns.map(x=>[x,x*x*v]),'#a78bfa',[8,4],P,cW,cH,maxY);
+  const curX=P.l+(n-1)/(nMax-1||1)*cW;
+  g.strokeStyle='rgba(255,255,255,.4)';g.lineWidth=1;g.setLineDash([4,4]);
+  g.beginPath();g.moveTo(curX,P.t);g.lineTo(curX,P.t+cH);g.stroke();g.setLineDash([]);
+  g.fillStyle='rgba(255,255,255,.7)';g.font='bold 11px "IBM Plex Mono",monospace';g.textAlign='center';
+  g.fillText('n='+n,curX,P.t+10);
+  const stackY=P.t+cH-(n/maxY)*cH;
+  const domY=P.t+cH-(Math.min(n*n*v,maxY)/maxY)*cH;
+  g.fillStyle='#38bdf8';g.font='bold 10px "IBM Plex Mono",monospace';g.textAlign='left';
+  if(curX+10<P.l+cW-50)g.fillText(n+' frames',curX+4,Math.max(stackY-6,P.t+14));
+  g.fillStyle='#a78bfa';
+  if(curX+10<P.l+cW-50)g.fillText(n*n*v+' units',curX+4,Math.max(domY-6,P.t+26));
+  g.font='bold 11px "IBM Plex Mono",monospace';g.textAlign='left';
+  const lastX=P.l+cW;
+  g.fillStyle='#38bdf8';g.fillText('Stack O(n)',lastX-90,P.t+18);
+  g.fillStyle='#a78bfa';g.fillText('Domains O(n²v)',lastX-110,P.t+32);
+  const ticks=[];for(let i=0;i<=nMax;i+=Math.max(1,Math.floor(nMax/6)))ticks.push(i);
+  labelAxes(g,P,cW,cH,'n (empty cells)','Memory units',ticks,1,nMax);
+}
+
+function showTab(id){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['bt','comp'][i]===id));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(id==='comp')setTimeout(()=>onParamChange(),50);
+}
+
+buildBoard();init();paintStack();
+</script>
+</body>
+</html>
