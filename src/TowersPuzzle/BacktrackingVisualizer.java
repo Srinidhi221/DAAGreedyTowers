@@ -51,11 +51,12 @@ public class BacktrackingVisualizer extends JFrame implements SolverEngine.Solve
     private static final int[] PUZZLE_RIGHT  = {3, 2, 1, 2};
 
     // ── Panels ────────────────────────────────────────────────────────────
-    private final GridPanel    gridPanel;
-    private final LogPanel     logPanel;
-    private final StatsPanel   statsPanel;
-    private final TreePanel    treePanel;
-    private final ControlPanel controls;
+    private final GridPanel            gridPanel;
+    private final LogPanel             logPanel;
+    private final StatsPanel           statsPanel;
+    private final TreePanel            treePanel;
+    private final ControlPanel         controls;
+    private final ComplexityGraphPanel complexityGraph;
 
     // ── Solver state ──────────────────────────────────────────────────────
     private final StatsTracker stats = new StatsTracker();
@@ -82,9 +83,15 @@ public class BacktrackingVisualizer extends JFrame implements SolverEngine.Solve
         root.setBackground(BG_DARK);
         root.setBorder(new EmptyBorder(12, 12, 12, 12));
 
-        gridPanel  = new GridPanel();
-        controls   = new ControlPanel();
-        JPanel left = vstack(gridPanel, controls);
+        gridPanel       = new GridPanel();
+        controls        = new ControlPanel();
+        complexityGraph = new ComplexityGraphPanel();
+
+        // Centre column: grid on top, complexity graph below
+        JPanel centreCol = new JPanel(new BorderLayout(6, 6));
+        centreCol.setBackground(BG_DARK);
+        centreCol.add(gridPanel,       BorderLayout.CENTER);
+        centreCol.add(controls,        BorderLayout.SOUTH);
 
         statsPanel = new StatsPanel();
         logPanel   = new LogPanel();
@@ -94,16 +101,24 @@ public class BacktrackingVisualizer extends JFrame implements SolverEngine.Solve
         treePanel  = new TreePanel();
         treePanel.setPreferredSize(new Dimension(270, 0));
 
-        root.add(left,      BorderLayout.CENTER);
-        root.add(mid,       BorderLayout.EAST);
-        root.add(treePanel, BorderLayout.WEST);
+        // Graph spans the full bottom of the window
+        complexityGraph.setPreferredSize(new Dimension(0, 200));
+
+        JPanel mainArea = new JPanel(new BorderLayout(8, 8));
+        mainArea.setBackground(BG_DARK);
+        mainArea.add(centreCol, BorderLayout.CENTER);
+        mainArea.add(mid,       BorderLayout.EAST);
+        mainArea.add(treePanel, BorderLayout.WEST);
+
+        root.add(mainArea,      BorderLayout.CENTER);
+        root.add(complexityGraph, BorderLayout.SOUTH);
 
         // Pre-load clues so the grid shows the puzzle on startup
         gridPanel.setClues(PUZZLE_TOP, PUZZLE_BOTTOM, PUZZLE_LEFT, PUZZLE_RIGHT);
 
         setContentPane(root);
         pack();
-        setMinimumSize(new Dimension(1100, 720));
+        setMinimumSize(new Dimension(1100, 920));
         setLocationRelativeTo(null);
         setVisible(true);
     }
@@ -124,6 +139,9 @@ public class BacktrackingVisualizer extends JFrame implements SolverEngine.Solve
             statsPanel.update(st);
             logPanel.addEntry(type, message, st.getCurrentDepth());
             treePanel.addNode(type, row, col, value, st.getCurrentDepth());
+            complexityGraph.addDataPoint(st.getCurrentDepth(),
+                                         st.getNodesExplored(),
+                                         st.getBranchesPruned());
         });
     }
 
@@ -136,6 +154,7 @@ public class BacktrackingVisualizer extends JFrame implements SolverEngine.Solve
         }
         treePanel.reset();
         logPanel.clear();
+        complexityGraph.reset();
 
         solver = new SolverEngine(stats, this,
                     PUZZLE_TOP.clone(), PUZZLE_BOTTOM.clone(),
@@ -870,6 +889,287 @@ public class BacktrackingVisualizer extends JFrame implements SolverEngine.Solve
                 p.add(l);
             }
             return p;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    //  ComplexityGraphPanel – live time-complexity chart
+    //
+    //  Plots three curves as the solver runs:
+    //    1. ACTUAL nodes explored  (cyan, live data)
+    //    2. BRUTE FORCE  N^d       (red,  theoretical worst-case)
+    //    3. MRV/LCV enhanced       (amber, empirical b^d with b≈2.5)
+    //
+    //  X-axis = recursion depth (0 … N*N = 16)
+    //  Y-axis = node count  (log scale for readability)
+    // ══════════════════════════════════════════════════════════════════════
+
+    class ComplexityGraphPanel extends JPanel {
+
+        // ── Live data collected during the solve ──────────────────────────
+        // dataByDepth[d] = max nodes-explored value seen at depth d
+        private final long[]  actualNodes  = new long[SolverEngine.N * SolverEngine.N + 1];
+        private final long[]  prunedByDepth= new long[SolverEngine.N * SolverEngine.N + 1];
+        private       int     maxDepthSeen = 0;
+        private       long    maxNodesSeen = 1;
+
+        // ── Smoothed "actual" polyline (one point per depth level recorded) ─
+        private final List<long[]> snapshots = new ArrayList<>(); // [depth, nodes, pruned]
+
+        // ── Animation ────────────────────────────────────────────────────
+        private final javax.swing.Timer animTimer;
+        private float animPhase = 0f;
+        private boolean dirty = false;
+
+        ComplexityGraphPanel() {
+            setBackground(BG_DARK);
+            setBorder(new CompoundBorder(
+                new LineBorder(GRID_LINE, 1, true),
+                new EmptyBorder(8, 8, 8, 8)
+            ));
+            animTimer = new javax.swing.Timer(32, e -> {
+                animPhase += 0.05f;
+                if (dirty) { repaint(); dirty = false; }
+                else repaint(); // keep pulse alive
+            });
+            animTimer.start();
+        }
+
+        void reset() {
+            Arrays.fill(actualNodes,   0L);
+            Arrays.fill(prunedByDepth, 0L);
+            snapshots.clear();
+            maxDepthSeen = 0;
+            maxNodesSeen = 1;
+            dirty = true;
+        }
+
+        void addDataPoint(int depth, long nodes, long pruned) {
+            if (depth < 0 || depth >= actualNodes.length) return;
+            actualNodes[depth]   = Math.max(actualNodes[depth],   nodes);
+            prunedByDepth[depth] = Math.max(prunedByDepth[depth], pruned);
+            if (depth  > maxDepthSeen) maxDepthSeen = depth;
+            if (nodes  > maxNodesSeen) maxNodesSeen = nodes;
+            snapshots.add(new long[]{depth, nodes, pruned});
+            if (snapshots.size() > 2000) snapshots.remove(0);
+            dirty = true;
+        }
+
+        // ── Paint ─────────────────────────────────────────────────────────
+        @Override
+        protected void paintComponent(Graphics g0) {
+            super.paintComponent(g0);
+            Graphics2D g = (Graphics2D) g0;
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,      RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+            int W  = getWidth();
+            int H  = getHeight();
+            int N  = SolverEngine.N;
+            int maxD = N * N;          // 16 for 4×4
+
+            // ── Background
+            g.setColor(BG_DARK);
+            g.fillRect(0, 0, W, H);
+
+            // ── Margins
+            int ML = 68, MR = 18, MT = 30, MB = 38;
+            int plotW = W - ML - MR;
+            int plotH = H - MT - MB;
+            if (plotW < 10 || plotH < 10) return;
+
+            // ── Title
+            g.setFont(new Font("Monospaced", Font.BOLD, 11));
+            g.setColor(ACCENT_CYAN);
+            g.drawString("TIME COMPLEXITY  –  Nodes Explored vs Recursion Depth", ML, MT - 10);
+
+            // ── Plot background
+            g.setColor(new Color(14, 20, 38));
+            g.fillRoundRect(ML, MT, plotW, plotH, 6, 6);
+            g.setColor(GRID_LINE);
+            g.setStroke(new BasicStroke(1f));
+            g.drawRoundRect(ML, MT, plotW, plotH, 6, 6);
+
+            // ── Y-axis: log scale  (log10)
+            double logMax = Math.log10(Math.max(maxNodesSeen, 10));
+            // Always show at least up to brute-force at max depth
+            double bruteMax = (double) maxD * Math.log10(N);  // log10(N^maxD)
+            logMax = Math.max(logMax, bruteMax);
+            logMax = Math.max(logMax, 2.0); // at least 100
+
+            // ── Grid lines (horizontal log ticks)
+            g.setFont(new Font("Monospaced", Font.PLAIN, 8));
+            for (int exp = 0; exp <= (int) Math.ceil(logMax); exp++) {
+                int py = logToY(exp, logMax, MT, plotH);
+                if (py < MT || py > MT + plotH) continue;
+                g.setColor(new Color(35, 50, 80));
+                g.setStroke(new BasicStroke(0.7f, BasicStroke.CAP_BUTT,
+                    BasicStroke.JOIN_BEVEL, 0, new float[]{3, 4}, 0));
+                g.drawLine(ML, py, ML + plotW, py);
+                g.setStroke(new BasicStroke(1f));
+                g.setColor(TEXT_DIM);
+                String lab = exp < 4 ? String.valueOf((int)Math.pow(10, exp))
+                                     : "10^" + exp;
+                g.drawString(lab, ML - 4 - g.getFontMetrics().stringWidth(lab), py + 4);
+            }
+
+            // ── Grid lines (vertical depth ticks)
+            for (int d = 0; d <= maxD; d += 2) {
+                int px = depthToX(d, maxD, ML, plotW);
+                g.setColor(new Color(35, 50, 80));
+                g.setStroke(new BasicStroke(0.7f, BasicStroke.CAP_BUTT,
+                    BasicStroke.JOIN_BEVEL, 0, new float[]{3, 4}, 0));
+                g.drawLine(px, MT, px, MT + plotH);
+                g.setStroke(new BasicStroke(1f));
+                g.setColor(TEXT_DIM);
+                g.setFont(new Font("Monospaced", Font.PLAIN, 8));
+                g.drawString(String.valueOf(d), px - 3, MT + plotH + 12);
+            }
+
+            // ── Axis labels
+            g.setFont(new Font("Monospaced", Font.PLAIN, 9));
+            g.setColor(TEXT_DIM);
+            g.drawString("Depth", ML + plotW/2 - 15, MT + plotH + 24);
+            // Y label (rotated)
+            Graphics2D gr = (Graphics2D) g.create();
+            gr.setFont(new Font("Monospaced", Font.PLAIN, 9));
+            gr.setColor(TEXT_DIM);
+            gr.rotate(-Math.PI/2, 14, MT + plotH/2);
+            gr.drawString("Nodes (log scale)", 14 - 40, MT + plotH/2 + 4);
+            gr.dispose();
+
+            // ── CURVE 1: Brute Force  O(N^d)  — red dashed
+            drawTheoreticalCurve(g, maxD, ML, MT, plotW, plotH, logMax,
+                d -> d * Math.log10(N),          // log10(N^d)
+                ACCENT_RED, "Brute-Force O(N^d)",  new float[]{5, 4}, 1);
+
+            // ── CURVE 2: MRV enhanced  O(b^d) with b≈2.5  — amber dashed
+            drawTheoreticalCurve(g, maxD, ML, MT, plotW, plotH, logMax,
+                d -> d * Math.log10(2.5),         // log10(2.5^d)
+                ACCENT_AMBER, "MRV/LCV O(2.5^d)", new float[]{4, 3}, 2);
+
+            // ── CURVE 3: Actual nodes (live, solid cyan) ──────────────────
+            if (maxDepthSeen > 0) {
+                List<int[]> pts = new ArrayList<>();
+                for (int d = 0; d <= maxDepthSeen; d++) {
+                    long v = actualNodes[d];
+                    if (v == 0) continue;
+                    int px = depthToX(d, maxD, ML, plotW);
+                    int py = logToY(Math.log10(Math.max(v, 1)), logMax, MT, plotH);
+                    pts.add(new int[]{px, py});
+                }
+                if (pts.size() >= 2) {
+                    // Glow
+                    for (int gk = 4; gk >= 1; gk--) {
+                        g.setColor(new Color(0, 220, 200, 30 / gk));
+                        g.setStroke(new BasicStroke(gk * 2.5f, BasicStroke.CAP_ROUND,
+                                                    BasicStroke.JOIN_ROUND));
+                        drawPolyline(g, pts);
+                    }
+                    g.setColor(ACCENT_CYAN);
+                    g.setStroke(new BasicStroke(2.2f, BasicStroke.CAP_ROUND,
+                                                BasicStroke.JOIN_ROUND));
+                    drawPolyline(g, pts);
+
+                    // Animated leading dot
+                    int[] last = pts.get(pts.size()-1);
+                    float pulse = 0.6f + 0.4f * (float)Math.sin(animPhase);
+                    int dotR = (int)(6 * pulse);
+                    g.setColor(new Color(0, 220, 200, (int)(200 * pulse)));
+                    g.fillOval(last[0]-dotR, last[1]-dotR, dotR*2, dotR*2);
+                    g.setColor(ACCENT_CYAN);
+                    g.setStroke(new BasicStroke(1.5f));
+                    g.drawOval(last[0]-dotR, last[1]-dotR, dotR*2, dotR*2);
+                }
+
+                // ── Pruned area (shaded band below actual curve) ──────────
+                if (pts.size() >= 2) {
+                    Polygon shade = new Polygon();
+                    for (int[] p2 : pts) shade.addPoint(p2[0], p2[1]);
+                    shade.addPoint(pts.get(pts.size()-1)[0], MT + plotH);
+                    shade.addPoint(pts.get(0)[0],            MT + plotH);
+                    g.setColor(new Color(0, 220, 200, 18));
+                    g.fillPolygon(shade);
+                }
+            }
+
+            // ── Legend ────────────────────────────────────────────────────
+            drawLegend(g, ML + plotW - 190, MT + 8);
+
+            // ── Annotations: current stats ────────────────────────────────
+            if (maxDepthSeen > 0) {
+                long totalNodes   = actualNodes[maxDepthSeen];
+                long bruteAtDepth = (long) Math.pow(N, maxDepthSeen);
+                double savings    = bruteAtDepth > 0
+                    ? 100.0 * (1.0 - (double)totalNodes / bruteAtDepth) : 0;
+
+                g.setFont(new Font("Monospaced", Font.PLAIN, 9));
+                g.setColor(TEXT_DIM);
+                int ax = ML + 6, ay = MT + 14;
+                g.drawString(String.format("depth=%d  nodes=%d",
+                    maxDepthSeen, Math.max(totalNodes,0)), ax, ay);
+                g.setColor(ACCENT_GREEN);
+                g.drawString(String.format("pruning saves ≈ %.1f%% of brute-force", savings),
+                    ax, ay + 12);
+            }
+        }
+
+        // ── Helpers ───────────────────────────────────────────────────────
+
+        private interface LogFn { double apply(int d); }
+
+        private void drawTheoreticalCurve(Graphics2D g, int maxD,
+                                           int ML, int MT, int plotW, int plotH,
+                                           double logMax, LogFn fn,
+                                           Color color, String label,
+                                           float[] dash, int legendRow) {
+            List<int[]> pts = new ArrayList<>();
+            for (int d = 0; d <= maxD; d++) {
+                double lv = fn.apply(d);
+                if (lv < 0) lv = 0;
+                int px = depthToX(d, maxD, ML, plotW);
+                int py = logToY(lv, logMax, MT, plotH);
+                pts.add(new int[]{px, py});
+            }
+            g.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), 160));
+            g.setStroke(new BasicStroke(1.6f, BasicStroke.CAP_BUTT,
+                BasicStroke.JOIN_BEVEL, 0, dash, 0));
+            drawPolyline(g, pts);
+            g.setStroke(new BasicStroke(1f));
+        }
+
+        private void drawLegend(Graphics2D g, int x, int y) {
+            Object[][] items = {
+                {ACCENT_CYAN,  "━━  Actual nodes (live)",    null},
+                {ACCENT_RED,   "╌╌  Brute-force O(N^d)",     new float[]{5,4}},
+                {ACCENT_AMBER, "╌╌  MRV/LCV O(2.5^d)",       new float[]{4,3}},
+            };
+            g.setFont(new Font("Monospaced", Font.PLAIN, 9));
+            for (int i = 0; i < items.length; i++) {
+                Color  c   = (Color)   items[i][0];
+                String lbl = (String)  items[i][1];
+                g.setColor(new Color(10, 14, 26, 180));
+                g.fillRoundRect(x - 2, y + i*16 - 10, 175, 13, 4, 4);
+                g.setColor(c);
+                g.drawString(lbl, x, y + i*16);
+            }
+        }
+
+        private void drawPolyline(Graphics2D g, List<int[]> pts) {
+            for (int i = 1; i < pts.size(); i++) {
+                g.drawLine(pts.get(i-1)[0], pts.get(i-1)[1],
+                           pts.get(i)[0],   pts.get(i)[1]);
+            }
+        }
+
+        private int depthToX(int d, int maxD, int ML, int plotW) {
+            return ML + (int)((double) d / maxD * plotW);
+        }
+
+        private int logToY(double logVal, double logMax, int MT, int plotH) {
+            double frac = logMax > 0 ? logVal / logMax : 0;
+            frac = Math.max(0, Math.min(1, frac));
+            return MT + plotH - (int)(frac * plotH);
         }
     }
 
