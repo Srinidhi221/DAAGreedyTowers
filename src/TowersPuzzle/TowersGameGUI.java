@@ -348,9 +348,13 @@ import java.util.Comparator;
         GridBagConstraints gc = new GridBagConstraints();
         gc.insets = new Insets(5, 5, 5, 5);
 
-int[] top    = {2, 1, 4, 3};
+/*int[] top    = {2, 1, 4, 3};
 int[] right  = {2, 3, 1, 2};
 int[] bottom = {3, 4, 1, 2};
+int[] left   = {1, 3, 2, 2};*/
+int[] top    = {1, 3, 2, 2};
+int[] right  = {3, 2, 1, 2};
+int[] bottom = {3, 1, 2, 1};
 int[] left   = {1, 3, 2, 2};
 
         // top clues
